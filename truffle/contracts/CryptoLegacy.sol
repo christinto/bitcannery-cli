@@ -110,7 +110,7 @@ contract CryptoLegacyContract {
     bytes32[] keyPartHashes,
     bytes encryptedKeyParts,
     bytes encryptedData,
-    bytes32 dataHash) external
+    bytes32 dataHash) payable external
     ownerOnly()
     atState(States.CallForKeepers)
   {
