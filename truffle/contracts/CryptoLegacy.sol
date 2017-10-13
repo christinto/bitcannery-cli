@@ -40,7 +40,7 @@ contract CryptoLegacyContract {
     uint balance;
   }
 
-  struct EncyptedData {
+  struct EncryptedData {
     bytes encryptedData;
     bytes32 dataHash; // sha-3 hash
     bytes encryptedKeyParts; // packed array of key parts
@@ -60,7 +60,7 @@ contract CryptoLegacyContract {
 
   States public state = States.CallForKeepers;
 
-  EncyptedData public encyptedData;
+  EncryptedData public encryptedData;
 
   KeeperProposal[] public keeperProposals;
   mapping(address => uint8) public proposedKeeperFlags;
@@ -109,7 +109,7 @@ contract CryptoLegacyContract {
     uint[] selectedProposalIndices,
     bytes32[] keyPartHashes,
     bytes encryptedKeyParts,
-    bytes encryptedData,
+    bytes _encryptedData,
     bytes32 dataHash
   ) payable external
     ownerOnly()
@@ -117,8 +117,8 @@ contract CryptoLegacyContract {
   {
     uint _totalFinalReward = 0;
 
-    encyptedData = EncyptedData({
-      encryptedData: encryptedData,
+    encryptedData = EncryptedData({
+      encryptedData: _encryptedData,
       dataHash: dataHash,
       encryptedKeyParts: encryptedKeyParts
     });
