@@ -180,13 +180,6 @@ contract CryptoLegacyContract {
   }
 
 
-  // TODO: remove (for debug purposes only)
-  //
-  function forceOwnerCheckIn() external {
-    lastOwnerCheckInAt = now;
-  }
-
-
   function keeperCheckIn() external
     activeKeepersOnly()
     atState(States.Active)
