@@ -4,6 +4,9 @@ import "SafeMath.sol";
 
 contract CryptoLegacyContract {
 
+  event KeysNeeded();
+
+  // TODO: remove (for debug purposes only)
   event DebugEvent(string debug);
 
   enum States {
@@ -38,12 +41,14 @@ contract CryptoLegacyContract {
     bytes32 keyPartHash; // sha-3 hash
     uint lastCheckInAt;
     uint balance;
+    bool keyPartSupplied;
   }
 
   struct EncryptedData {
     bytes encryptedData;
     bytes32 dataHash; // sha-3 hash
     bytes encryptedKeyParts; // packed array of key parts
+    bytes[] suppliedKeyParts;
   }
 
   address public owner = msg.sender;
@@ -120,7 +125,8 @@ contract CryptoLegacyContract {
     encryptedData = EncryptedData({
       encryptedData: _encryptedData,
       dataHash: dataHash,
-      encryptedKeyParts: encryptedKeyParts
+      encryptedKeyParts: encryptedKeyParts,
+      suppliedKeyParts: new bytes[](0)
     });
 
     for (uint i = 0; i < selectedProposalIndices.length; i++) {
@@ -131,7 +137,8 @@ contract CryptoLegacyContract {
         publicKey: proposal.publicKey,
         keyPartHash: keyPartHashes[i],
         lastCheckInAt: now,
-        balance: 0
+        balance: 0,
+        keyPartSupplied: false
       });
 
       activeKeepersAddresses.push(proposal.keeperAddress);
@@ -184,7 +191,25 @@ contract CryptoLegacyContract {
     activeKeepersOnly()
     atState(States.Active)
   {
-    // TODO: implement
+    uint timeSinceLastOwnerCheckIn = SafeMath.sub(now, lastOwnerCheckInAt);
+    if (timeSinceLastOwnerCheckIn > checkInInterval) {
+      ownerFailedToCheckInInTime();
+      return;
+    }
+
+    ActiveKeeper keeper = activeKeepers[msg.sender];
+    if (keeper.balance > 0) {
+      msg.sender.transfer(keeper.balance);
+      keeper.balance = 0;
+    }
+
+    keeper.lastCheckInAt = now;
+  }
+
+
+  function ownerFailedToCheckInInTime() internal {
+    state = States.CallForKeys;
+    KeysNeeded();
   }
 
 
@@ -192,15 +217,40 @@ contract CryptoLegacyContract {
     activeKeepersOnly()
     atState(States.CallForKeys)
   {
-    // TODO: implement
+    ActiveKeeper keeper = activeKeepers[msg.sender];
+    require(!keeper.keyPartSupplied);
+
+    bytes32 suppliedKeyPartHash = keccak256(keyPart);
+    require(suppliedKeyPartHash == keeper.keyPartHash);
+
+    encryptedData.suppliedKeyParts.push(keyPart);
+
+    uint keeperFinalReward = finalReward;
+    msg.sender.transfer(keeper.balance + keeperFinalReward);
+
+    keeper.balance = 0;
+    keeper.keyPartSupplied = true;
   }
 
 
+  // TODO: how a Keeper can get their remaining balance when a contract is cancelled?
+  //
   function cancel() external
     ownerOnly()
     atState(States.Active)
   {
-    // TODO: implement
+    uint totalKeepersBalance = 0;
+
+    for (uint i = 0; i < activeKeepersAddresses.length; i++) {
+      ActiveKeeper keeper = activeKeepers[activeKeepersAddresses[i]];
+      totalKeepersBalance = SafeMath.add(totalKeepersBalance, keeper.balance);
+    }
+
+    if (this.balance > totalKeepersBalance) {
+      msg.sender.transfer(this.balance - totalKeepersBalance);
+    }
+
+    state = States.Cancelled;
   }
 
 }
