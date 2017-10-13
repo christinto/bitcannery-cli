@@ -154,10 +154,7 @@ contract CryptoLegacyContract {
     atState(States.Active)
   {
     uint timeSinceLastOwnerCheckIn = SafeMath.sub(now, lastOwnerCheckInAt);
-
-    if (timeSinceLastOwnerCheckIn > checkInInterval) {
-      revert();
-    }
+    require(timeSinceLastOwnerCheckIn <= checkInInterval);
 
     uint keepingFeeMult = SafeMath.mul(KEEPING_FEE_PRECISION, timeSinceLastOwnerCheckIn) / checkInInterval;
     uint keepersBalance = 0;
