@@ -24,7 +24,7 @@ contract CryptoLegacyContract {
   }
 
   modifier activeKeepersOnly() {
-    require(activeKeepers[msg.sender].lastCheckInTime > 0);
+    require(activeKeepers[msg.sender].lastCheckInAt > 0);
     _;
   }
 
@@ -36,7 +36,7 @@ contract CryptoLegacyContract {
   struct ActiveKeeper {
     bytes publicKey; // 64-byte
     bytes32 keyPartHash; // sha-3 hash
-    uint lastCheckInTime;
+    uint lastCheckInAt;
     uint balance;
   }
 
@@ -130,7 +130,7 @@ contract CryptoLegacyContract {
       activeKeepers[proposal.keeperAddress] = ActiveKeeper({
         publicKey: proposal.publicKey,
         keyPartHash: keyPartHashes[i],
-        lastCheckInTime: now,
+        lastCheckInAt: now,
         balance: 0
       });
 
