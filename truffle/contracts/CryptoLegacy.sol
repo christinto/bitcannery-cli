@@ -68,7 +68,7 @@ contract CryptoLegacyContract {
   EncryptedData public encryptedData;
 
   KeeperProposal[] public keeperProposals;
-  mapping(address => uint8) public proposedKeeperFlags;
+  mapping(address => bool) public proposedKeeperFlags;
 
   mapping(address => ActiveKeeper) public activeKeepers;
   address[] public activeKeepersAddresses; // TODO: make internal
@@ -97,14 +97,14 @@ contract CryptoLegacyContract {
     atState(States.CallForKeepers)
   {
     require(msg.sender != owner);
-    require(proposedKeeperFlags[msg.sender] == 0);
+    require(!proposedKeeperFlags[msg.sender]);
 
     keeperProposals.push(KeeperProposal({
       keeperAddress: msg.sender,
       publicKey: publicKey
     }));
 
-    proposedKeeperFlags[msg.sender] = 1;
+    proposedKeeperFlags[msg.sender] = true;
   }
 
 
