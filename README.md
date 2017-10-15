@@ -1,6 +1,6 @@
 # CryptoLegacy
 
-##Running tests
+## Running tests
 
 Open two console windows.
 
