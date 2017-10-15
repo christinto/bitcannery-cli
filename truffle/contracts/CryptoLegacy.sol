@@ -1,8 +1,8 @@
 pragma solidity ^0.4.12;
 
-import "SafeMath.sol";
+import "./SafeMath.sol";
 
-contract CryptoLegacyContract {
+contract CryptoLegacy {
 
   event KeysNeeded();
 
@@ -84,7 +84,7 @@ contract CryptoLegacyContract {
   // Called by the person who possesses the data they wish to transfer.
   // This person becomes the owner of the contract.
   //
-  function CryptoLegacyContract(uint _checkInInterval, uint _keepingFee, uint _finalReward) public {
+  function CryptoLegacy(uint _checkInInterval, uint _keepingFee, uint _finalReward) public {
     checkInInterval = _checkInInterval;
     keepingFee = _keepingFee;
     finalReward = _finalReward;
