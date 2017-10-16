@@ -76,7 +76,7 @@ contract CryptoLegacy {
   // We need this because current version of Solidity doesn't support non-integer numbers.
   // We set it to be equal to number of wei in eth to make sure we transfer keeping fee with
   // enough precision.
-  uint internal constant KEEPING_FEE_PRECISION = 1 ether;
+  uint public constant KEEPING_FEE_ROUNDING_MULT = 1 ether;
 
 
   // Called by the person who possesses the data they wish to transfer.
@@ -173,12 +173,12 @@ contract CryptoLegacy {
     uint timeSinceLastOwnerCheckIn = SafeMath.sub(now, lastOwnerCheckInAt);
     require(timeSinceLastOwnerCheckIn <= checkInInterval);
 
-    uint keepingFeeMult = SafeMath.mul(KEEPING_FEE_PRECISION, timeSinceLastOwnerCheckIn) / checkInInterval;
+    uint keepingFeeMult = SafeMath.mul(KEEPING_FEE_ROUNDING_MULT, timeSinceLastOwnerCheckIn) / checkInInterval;
     uint keepersBalance = 0;
 
     for (uint i = 0; i < activeKeepersAddresses.length; i++) {
       ActiveKeeper keeper = activeKeepers[activeKeepersAddresses[i]];
-      uint balanceToAdd = SafeMath.mul(keepingFee, keepingFeeMult) / KEEPING_FEE_PRECISION;
+      uint balanceToAdd = SafeMath.mul(keepingFee, keepingFeeMult) / KEEPING_FEE_ROUNDING_MULT;
       keeper.balance = SafeMath.add(keeper.balance, balanceToAdd);
       keepersBalance = SafeMath.add(keepersBalance, keeper.balance);
     }
