@@ -68,7 +68,7 @@ contract CryptoLegacy {
   mapping(address => bool) public proposedKeeperFlags;
 
   mapping(address => ActiveKeeper) public activeKeepers;
-  address[] public activeKeepersAddresses; // TODO: make internal
+  address[] public activeKeepersAddresses;
 
   // How much in total we need to pay to active Keepers when they all supply their keys.
   uint internal totalFinalReward;
@@ -159,6 +159,15 @@ contract CryptoLegacy {
     ownerOnly()
     atState(States.Active)
   {
+    creditKeepers({requiredFinalReward: totalFinalReward});
+    lastOwnerCheckInAt = now;
+  }
+
+
+  // Returns: Keepers' cumulative balance (sum of balances of all Keepers
+  // excluding final rewards).
+  //
+  function creditKeepers(uint requiredFinalReward) internal returns (uint) {
     uint timeSinceLastOwnerCheckIn = SafeMath.sub(now, lastOwnerCheckInAt);
     require(timeSinceLastOwnerCheckIn <= checkInInterval);
 
@@ -172,38 +181,45 @@ contract CryptoLegacy {
       keepersBalance = SafeMath.add(keepersBalance, keeper.balance);
     }
 
-    require(this.balance >= SafeMath.add(keepersBalance, totalFinalReward));
+    uint requiredBalance = SafeMath.add(keepersBalance, requiredFinalReward);
+    uint balance = this.balance;
 
-    lastOwnerCheckInAt = now;
+    require(balance >= requiredBalance);
+    return keepersBalance;
   }
 
 
+  // Pays the Keeper their balance and updates their check-in time. Verifies that the owner
+  // checked in in time and, if not, transfers the contract into CALL_FOR_KEYS state.
+  //
+  // A Keeper can call this method to get his reward regardless of the contract state.
+  //
   function keeperCheckIn() external
     activeKeepersOnly()
-    atState(States.Active)
   {
-    uint timeSinceLastOwnerCheckIn = SafeMath.sub(now, lastOwnerCheckInAt);
-    if (timeSinceLastOwnerCheckIn > checkInInterval) {
-      ownerFailedToCheckInInTime();
-      return;
-    }
-
     ActiveKeeper keeper = activeKeepers[msg.sender];
-    if (keeper.balance > 0) {
-      msg.sender.transfer(keeper.balance);
+    uint keeperBalance = keeper.balance;
+    if (keeperBalance > 0) {
       keeper.balance = 0;
+      msg.sender.transfer(keeperBalance);
     }
 
     keeper.lastCheckInAt = now;
+
+    if (state != States.Active) {
+      return;
+    }
+
+    uint timeSinceLastOwnerCheckIn = SafeMath.sub(now, lastOwnerCheckInAt);
+    if (timeSinceLastOwnerCheckIn > checkInInterval) {
+      state = States.CallForKeys;
+      KeysNeeded();
+    }
   }
 
 
-  function ownerFailedToCheckInInTime() internal {
-    state = States.CallForKeys;
-    KeysNeeded();
-  }
-
-
+  // Called by Keepers to supply their decrypted key parts.
+  //
   function supplyKey(bytes keyPart) external
     activeKeepersOnly()
     atState(States.CallForKeys)
@@ -215,33 +231,33 @@ contract CryptoLegacy {
     require(suppliedKeyPartHash == keeper.keyPartHash);
 
     encryptedData.suppliedKeyParts.push(keyPart);
+    keeper.keyPartSupplied = true;
 
     uint keeperFinalReward = finalReward;
-    msg.sender.transfer(keeper.balance + keeperFinalReward);
-
+    uint toBeTransferred = keeper.balance + keeperFinalReward;
     keeper.balance = 0;
-    keeper.keyPartSupplied = true;
+
+    msg.sender.transfer(toBeTransferred);
   }
 
 
-  // TODO: how a Keeper can get their remaining balance when a contract is cancelled?
+  // Cancels the contract and notifies the Keepers. Credits all active Keepers with keeping fee,
+  // as if this was a check-in.
   //
-  function cancel() external
+  // Pass continuationContractAddress to notify the Keepers that a new contract was started
+  // instead of this one to elect new Keepers.
+  //
+  function cancel() payable external
     ownerOnly()
     atState(States.Active)
   {
-    uint totalKeepersBalance = 0;
-
-    for (uint i = 0; i < activeKeepersAddresses.length; i++) {
-      ActiveKeeper keeper = activeKeepers[activeKeepersAddresses[i]];
-      totalKeepersBalance = SafeMath.add(totalKeepersBalance, keeper.balance);
-    }
-
-    if (this.balance > totalKeepersBalance) {
-      msg.sender.transfer(this.balance - totalKeepersBalance);
-    }
-
     state = States.Cancelled;
+
+    uint keepersBalance = creditKeepers({requiredFinalReward: 0});
+
+    if (this.balance > keepersBalance) {
+      msg.sender.transfer(this.balance - keepersBalance);
+    }
   }
 
 }
