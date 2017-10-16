@@ -78,11 +78,15 @@ contract CryptoLegacy {
   // enough precision.
   uint public constant KEEPING_FEE_ROUNDING_MULT = 1 ether;
 
+  // Don't allow owner to specify check-in interval less than this when creating a new contract.
+  uint public constant MINIMUM_CHECK_IN_INTERVAL = 1 hour;
+
 
   // Called by the person who possesses the data they wish to transfer.
   // This person becomes the owner of the contract.
   //
   function CryptoLegacy(uint _checkInInterval, uint _keepingFee, uint _finalReward) public {
+    require(_checkInInterval >= MINIMUM_CHECK_IN_INTERVAL);
     checkInInterval = _checkInInterval;
     keepingFee = _keepingFee;
     finalReward = _finalReward;
