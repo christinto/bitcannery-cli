@@ -73,12 +73,13 @@ contract CryptoLegacy {
   mapping(address => ActiveKeeper) public activeKeepers;
   address[] public activeKeepersAddresses; // TODO: make internal
 
-  uint totalFinalReward;
+  // How much in total we need to pay to active Keepers when they all supply their keys.
+  uint internal totalFinalReward;
 
   // We need this because current version of Solidity doesn't support non-integer numbers.
   // We set it to be equal to number of wei in eth to make sure we transfer keeping fee with
   // enough precision.
-  uint constant KEEPING_FEE_PRECISION = 1 ether;
+  uint internal constant KEEPING_FEE_PRECISION = 1 ether;
 
 
   // Called by the person who possesses the data they wish to transfer.
