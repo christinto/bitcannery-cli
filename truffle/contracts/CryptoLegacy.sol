@@ -145,7 +145,8 @@ contract CryptoLegacy {
       _totalFinalReward = SafeMath.add(_totalFinalReward, keeperFinalReward);
     }
 
-    require(this.balance >= _totalFinalReward);
+    uint balance = this.balance;
+    require(balance >= _totalFinalReward);
 
     state = States.Active;
     totalFinalReward = _totalFinalReward;
