@@ -165,13 +165,17 @@ contract CryptoLegacy {
     ownerOnly()
     atState(States.Active)
   {
-    creditKeepers({requiredFinalReward: totalFinalReward});
+    uint excessBalance = creditKeepers({requiredFinalReward: totalFinalReward});
+
     lastOwnerCheckInAt = now;
+
+    if (excessBalance > 0) {
+      msg.sender.transfer(excessBalance);
+    }
   }
 
 
-  // Returns: Keepers' cumulative balance (sum of balances of all Keepers
-  // excluding final rewards).
+  // Returns: excess balance that can be transferred back to owner.
   //
   function creditKeepers(uint requiredFinalReward) internal returns (uint) {
     uint timeSinceLastOwnerCheckIn = SafeMath.sub(now, lastOwnerCheckInAt);
@@ -191,7 +195,7 @@ contract CryptoLegacy {
     uint balance = this.balance;
 
     require(balance >= requiredBalance);
-    return keepersBalance;
+    return balance - requiredBalance;
   }
 
 
@@ -257,10 +261,11 @@ contract CryptoLegacy {
   {
     state = States.Cancelled;
 
-    uint keepersBalance = creditKeepers({requiredFinalReward: 0});
+    // Since we're cancelling the contract, we don't need to pay final reward anymore.
+    uint excessBalance = creditKeepers({requiredFinalReward: 0});
 
-    if (this.balance > keepersBalance) {
-      msg.sender.transfer(this.balance - keepersBalance);
+    if (excessBalance > 0) {
+      msg.sender.transfer(excessBalance);
     }
   }
 
