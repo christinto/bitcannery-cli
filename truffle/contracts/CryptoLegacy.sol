@@ -79,7 +79,7 @@ contract CryptoLegacy {
   uint public constant KEEPING_FEE_ROUNDING_MULT = 1 ether;
 
   // Don't allow owner to specify check-in interval less than this when creating a new contract.
-  uint public constant MINIMUM_CHECK_IN_INTERVAL = 1 hour;
+  uint public constant MINIMUM_CHECK_IN_INTERVAL = 1 hours;
 
 
   // Called by the person who possesses the data they wish to transfer.
