@@ -96,6 +96,7 @@ contract CryptoLegacy {
   {
     require(msg.sender != owner);
     require(!proposedKeeperFlags[msg.sender]);
+    require(publicKey.length <= 128);
 
     keeperProposals.push(KeeperProposal({
       keeperAddress: msg.sender,
@@ -199,22 +200,20 @@ contract CryptoLegacy {
     activeKeepersOnly()
   {
     ActiveKeeper keeper = activeKeepers[msg.sender];
+    keeper.lastCheckInAt = now;
+
+    if (state == States.Active) {
+      uint timeSinceLastOwnerCheckIn = SafeMath.sub(now, lastOwnerCheckInAt);
+      if (timeSinceLastOwnerCheckIn > checkInInterval) {
+        state = States.CallForKeys;
+        KeysNeeded();
+      }
+    }
+
     uint keeperBalance = keeper.balance;
     if (keeperBalance > 0) {
       keeper.balance = 0;
       msg.sender.transfer(keeperBalance);
-    }
-
-    keeper.lastCheckInAt = now;
-
-    if (state != States.Active) {
-      return;
-    }
-
-    uint timeSinceLastOwnerCheckIn = SafeMath.sub(now, lastOwnerCheckInAt);
-    if (timeSinceLastOwnerCheckIn > checkInInterval) {
-      state = States.CallForKeys;
-      KeysNeeded();
     }
   }
 
