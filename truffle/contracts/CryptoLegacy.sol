@@ -6,9 +6,6 @@ contract CryptoLegacy {
 
   event KeysNeeded();
 
-  // TODO: remove (for debug purposes only)
-  event DebugEvent(string debug);
-
   enum States {
     CallForKeepers,
     Active,
