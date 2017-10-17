@@ -94,12 +94,12 @@ contract CryptoLegacy {
   }
 
 
-  function getNumProposals() constant returns (uint) {
+  function getNumProposals() external constant returns (uint) {
     return keeperProposals.length;
   }
 
 
-  function getNumKeepers() constant returns (uint) {
+  function getNumKeepers() external constant returns (uint) {
     return activeKeepersAddresses.length;
   }
 
