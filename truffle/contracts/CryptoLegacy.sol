@@ -66,6 +66,7 @@ contract CryptoLegacy {
 
   KeeperProposal[] public keeperProposals;
   mapping(address => bool) public proposedKeeperFlags;
+  mapping(bytes => bool) private proposedPublicKeys;
 
   mapping(address => ActiveKeeper) public activeKeepers;
   address[] public activeKeepersAddresses;
@@ -110,6 +111,7 @@ contract CryptoLegacy {
   {
     require(msg.sender != owner);
     require(!proposedKeeperFlags[msg.sender]);
+    require(!proposedPublicKeys[publicKey]);
     require(publicKey.length <= 128);
 
     keeperProposals.push(KeeperProposal({
@@ -118,6 +120,7 @@ contract CryptoLegacy {
     }));
 
     proposedKeeperFlags[msg.sender] = true;
+    proposedPublicKeys[publicKey] = true;
   }
 
 
