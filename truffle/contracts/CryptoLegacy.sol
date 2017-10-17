@@ -93,6 +93,16 @@ contract CryptoLegacy {
   }
 
 
+  function getNumProposals() constant returns (uint) {
+    return keeperProposals.length;
+  }
+
+
+  function getNumKeepers() constant returns (uint) {
+    return activeKeepersAddresses.length;
+  }
+
+
   // Called by a Keeper to submit their proposal.
   //
   function submitKeeperProposal(bytes publicKey) external
