@@ -26,14 +26,15 @@ contract('CryptoLegacy contract', function(accounts) {
   const keepingFee = 100
   const finalReward = 1000
 
+  let contract
+
   before(async () => {
-    const instance = await CryptoLegacy.new(
+    contract = await CryptoLegacy.new(
       checkInIntervalSec,
       keepingFee,
       finalReward,
       {from: addr.Alice}
     )
-    contract = instance
   })
 
   it(`starts with owner set to the creator of the contract`, async () => {
