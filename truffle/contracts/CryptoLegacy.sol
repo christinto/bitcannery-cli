@@ -195,7 +195,7 @@ contract CryptoLegacy {
     uint keepersBalance = 0;
 
     for (uint i = 0; i < activeKeepersAddresses.length; i++) {
-      ActiveKeeper keeper = activeKeepers[activeKeepersAddresses[i]];
+      ActiveKeeper storage keeper = activeKeepers[activeKeepersAddresses[i]];
       uint balanceToAdd = SafeMath.mul(keepingFee, keepingFeeMult) / KEEPING_FEE_ROUNDING_MULT;
       keeper.balance = SafeMath.add(keeper.balance, balanceToAdd);
       keepersBalance = SafeMath.add(keepersBalance, keeper.balance);
@@ -217,7 +217,7 @@ contract CryptoLegacy {
   function keeperCheckIn() external
     activeKeepersOnly()
   {
-    ActiveKeeper keeper = activeKeepers[msg.sender];
+    ActiveKeeper storage keeper = activeKeepers[msg.sender];
     keeper.lastCheckInAt = now;
 
     if (state == States.Active) {
@@ -242,7 +242,7 @@ contract CryptoLegacy {
     activeKeepersOnly()
     atState(States.CallForKeys)
   {
-    ActiveKeeper keeper = activeKeepers[msg.sender];
+    ActiveKeeper storage keeper = activeKeepers[msg.sender];
     require(!keeper.keyPartSupplied);
 
     bytes32 suppliedKeyPartHash = keccak256(keyPart);
