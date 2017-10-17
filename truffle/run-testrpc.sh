@@ -1,8 +1,13 @@
 #!/bin/sh
 set -e
 
+restart=1
+
+trap "exit" INT TERM
+trap "stop" EXIT
+
 start_testrpc() {
-  exec ./node_modules/.bin/testrpc \
+  ./node_modules/.bin/testrpc \
     --account="0xefe3554153962a2658215320b1feb4a68786bac8c3360f66cab13011c588bf73,2222000000000000000000" \
     --account="0xc0ac892cadd05649068eb6270c6def64caa6866a8d8ac92ba5b3f1fd766d74cd,123000000000000000000" \
     --account="0xc49306a5858d34b3a1062e95bef2cf1ca8d7d6cf013f3ae5b81843d348e5c620,222000000000000000000" \
@@ -15,8 +20,14 @@ start_testrpc() {
     -b 1
 }
 
+stop() {
+  restart=0
+  kill 0
+}
+
 # Restart TestRPC if it fails.
 #
-while true; do
+while [ "$restart" = 1 ]; do
   start_testrpc || true
+  echo 'TestRPC failed, restarting'
 done
