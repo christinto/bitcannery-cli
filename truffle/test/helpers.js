@@ -6,6 +6,7 @@ const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'))
 
 async function assertTxFails(txResultPromise) {
   const txResult = await txResultPromise
+  printEvents(txResult)
   const succeeded = await checkTransactionSuccessful(txResult)
   if (succeeded) {
     assert(false, 'transaction was expected to fail but succeeded')
@@ -15,6 +16,7 @@ async function assertTxFails(txResultPromise) {
 
 async function assertTxSucceeds(txResultPromise) {
   const txResult = await txResultPromise
+  printEvents(txResult)
   const succeeded = await checkTransactionSuccessful(txResult)
   if (!succeeded) {
     assert(false, 'transaction was expected to succeed but failed')
@@ -30,6 +32,7 @@ async function checkTransactionSuccessful(txResult) {
   }
   // Before Byzantium fork (current version of TestRPC)
   const tx = await web3.eth.getTransaction(txResult.tx)
+  console.info(`tx ${tx.hash}, from ${tx.from}`)
   return receipt.cumulativeGasUsed < tx.gas
 }
 
@@ -47,11 +50,31 @@ function increaseTimeSec(addSeconds) {
   )
 }
 
+async function getAccountBalance(account) {
+  const balance = await web3.eth.getBalance(account)
+  return web3.utils.fromWei(balance)
+}
+
+
+function printEvents(txResult) {
+  console.info('Events:', txResult.logs
+    .map(log => {
+      if (!log.event) return null
+      const argsDesc = Object.keys(log.args)
+        .map(argName => `${argName}: ${log.args[argName]}`)
+        .join(', ')
+      return `${log.event}(${argsDesc})`
+    })
+    .filter(x => !!x)
+  )
+}
+
 
 module.exports = {
   web3,
   assertTxFails,
   assertTxSucceeds,
   checkTransactionSuccessful,
-  increaseTimeSec
+  increaseTimeSec,
+  getAccountBalance,
 }
