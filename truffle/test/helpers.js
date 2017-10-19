@@ -1,39 +1,37 @@
 const assert = require('chai').assert
+const BigNumber = require('bignumber.js')
 
 const Web3 = require('web3')
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'))
 
 
 async function assertTxFails(txResultPromise) {
-  const txResult = await txResultPromise
-  printEvents(txResult)
-  const succeeded = await checkTransactionSuccessful(txResult)
-  if (succeeded) {
+  const txProps = await inspectTransaction(txResultPromise)
+  if (txProps.success) {
     assert(false, 'transaction was expected to fail but succeeded')
   }
+  return txProps
 }
 
 
 async function assertTxSucceeds(txResultPromise) {
-  const txResult = await txResultPromise
-  printEvents(txResult)
-  const succeeded = await checkTransactionSuccessful(txResult)
-  if (!succeeded) {
+  const txProps = await inspectTransaction(txResultPromise)
+  if (!txProps.success) {
     assert(false, 'transaction was expected to succeed but failed')
   }
+  return txProps
 }
 
 
-async function checkTransactionSuccessful(txResult) {
-  const {receipt} = txResult
-  if (receipt.status !== undefined) {
-    // Since Byzantium fork
-    return receipt.status === '0x1' || receipt.status === 1
-  }
-  // Before Byzantium fork (current version of TestRPC)
+async function inspectTransaction(txResultPromise) {
+  const txResult = await txResultPromise
   const tx = await web3.eth.getTransaction(txResult.tx)
-  console.info(`tx ${tx.hash}, from ${tx.from}`)
-  return receipt.cumulativeGasUsed < tx.gas
+  const {receipt} = txResult
+  const success = receipt.status !== undefined
+    ? receipt.status === '0x1' || receipt.status === 1 // Since Byzantium fork
+    : receipt.cumulativeGasUsed < tx.gas // Before Byzantium fork (current version of TestRPC)
+  const txPriceWei = new BigNumber(tx.gasPrice).times(receipt.cumulativeGasUsed)
+  return {tx, receipt, success, txPriceWei}
 }
 
 
@@ -51,22 +49,7 @@ function increaseTimeSec(addSeconds) {
 }
 
 async function getAccountBalance(account) {
-  const balance = await web3.eth.getBalance(account)
-  return web3.utils.fromWei(balance)
-}
-
-
-function printEvents(txResult) {
-  console.info('Events:', txResult.logs
-    .map(log => {
-      if (!log.event) return null
-      const argsDesc = Object.keys(log.args)
-        .map(argName => `${argName}: ${log.args[argName]}`)
-        .join(', ')
-      return `${log.event}(${argsDesc})`
-    })
-    .filter(x => !!x)
-  )
+  return new BigNumber(await web3.eth.getBalance(account))
 }
 
 
@@ -74,7 +57,7 @@ module.exports = {
   web3,
   assertTxFails,
   assertTxSucceeds,
-  checkTransactionSuccessful,
+  inspectTransaction,
   increaseTimeSec,
   getAccountBalance,
 }

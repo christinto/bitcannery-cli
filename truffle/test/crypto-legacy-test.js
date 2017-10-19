@@ -1,5 +1,6 @@
 const assert = require('chai').assert
 const CryptoLegacy = artifacts.require('./CryptoLegacyDebug.sol')
+const BigNumber = require('bignumber.js')
 
 const {web3,
   assertTxSucceeds,
@@ -24,6 +25,16 @@ contract('CryptoLegacy contract', (accounts) => {
     keeper_2: '0xbbccdd',
     keeper_3: '0xccddee',
     keeper_4: '0xddeeff',
+  }
+
+  const keyParts = {
+    keeper_1: '0x1234567890',
+    keeper_3: '0xababccddef',
+  }
+
+  const keyPartHashes = {
+    keeper_1: web3.utils.soliditySha3(keyParts.keeper_1),
+    keeper_3: web3.utils.soliditySha3(keyParts.keeper_3),
   }
 
   const checkInIntervalSec = 2 * 60 * 60 // 2 hours
@@ -92,11 +103,9 @@ contract('CryptoLegacy contract', (accounts) => {
   })
 
   function getAcceptKeepersParams() {
-    const hash_1 = '0x1230000000000000000000000000000000000000000000000000000000000000'
-    const hash_2 = '0x4560000000000000000000000000000000000000000000000000000000000000'
     return [
       [0, 2], // selected proposal indices
-      [hash_1, hash_2], // hashes of key parts
+      [keyPartHashes.keeper_1, keyPartHashes.keeper_3], // hashes of key parts
       '0xabcdef', // encrypted key parts, packed into byte array
       '0x123456', // encrypted data
       '0x678901', // hash of original data
@@ -168,7 +177,7 @@ contract('CryptoLegacy contract', (accounts) => {
   })
 
   it('keeper could send key only after Termination event', async () => {
-    assertTxFails(contract.supplyKey('arara'), {from: addr.keeper_1})
+    await assertTxFails(contract.supplyKey(keyParts.keeper_1), {from: addr.keeper_1})
   })
 
   it('accepted Keeper check-in sends right keeping fee to Keeper\'s account', async () => {
@@ -193,27 +202,27 @@ contract('CryptoLegacy contract', (accounts) => {
   })
 
   it('not accepted keeper couldn\'t send key', async () => {
-    assertTxFails(contract.supplyKey('arara', {from: addr.keeper_2}))
+    await assertTxFails(contract.supplyKey('arara', {from: addr.keeper_2}))
   })
 
   it('accepted keeper couldn\'t send not valid key part', async () => {
-    assertTxFails(contract.supplyKey('ururu', {from: addr.keeper_1}))
+    await assertTxFails(contract.supplyKey('ururu', {from: addr.keeper_1}))
   })
 
   it('accepted keeper could send valid key part and receive final reward', async () => {
-    const keeperToGetReward = addr.keeper_1
-    const balanceBefore = await getAccountBalance(keeperToGetReward)
-    assertTxSucceeds(contract.supplyKey('ururu', {from: keeperToGetReward}))
-    const balanceAfter = await getAccountBalance(keeperToGetReward)
-    assert.equal(balanceAfter, balanceBefore + finalReward, 'should have sent final reward')
+    const balanceBefore = await getAccountBalance(addr.keeper_1)
+    const {txPriceWei} = await assertTxSucceeds(contract.supplyKey(keyParts.keeper_1, {from: addr.keeper_1}))
+    const balanceAfter = await getAccountBalance(addr.keeper_1)
+    const expectedBalance = balanceBefore.plus(finalReward).minus(txPriceWei)
+    assert.equal(balanceAfter.toString(), expectedBalance.toString())
   })
 
   it('second accepted keeper could send valid key part and receive final reward', async () => {
-    const keeperToGetReward = addr.keeper_3
-    const balanceBefore = await getAccountBalance(keeperToGetReward)
-    assertTxSucceeds(contract.supplyKey('ururu', {from: keeperToGetReward}))
-    const balanceAfter = await getAccountBalance(keeperToGetReward)
-    assert.equal(balanceAfter, balanceBefore + finalReward, 'should have sent final reward')
+    const balanceBefore = await getAccountBalance(addr.keeper_3)
+    const {txPriceWei} = await assertTxSucceeds(contract.supplyKey(keyParts.keeper_3, {from: addr.keeper_3}))
+    const balanceAfter = await getAccountBalance(addr.keeper_3)
+    const expectedBalance = balanceBefore.plus(finalReward).minus(txPriceWei)
+    assert.equal(balanceAfter.toString(), expectedBalance.toString())
   })
 
 })
