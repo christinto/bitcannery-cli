@@ -1,4 +1,4 @@
-pragma solidity ^0.4.12;
+pragma solidity ^0.4.15;
 
 import "./CryptoLegacy.sol";
 
@@ -10,7 +10,7 @@ contract CryptoLegacyDebug is CryptoLegacy {
     debugTimestamp += sec;
   }
 
-  function getBlockTimestamp() internal returns (uint) {
+  function getBlockTimestamp() internal constant returns (uint) {
     return debugTimestamp;
   }
 

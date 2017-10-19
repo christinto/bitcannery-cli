@@ -1,4 +1,4 @@
-pragma solidity ^0.4.12;
+pragma solidity ^0.4.15;
 
 import "./SafeMath.sol";
 
@@ -43,6 +43,7 @@ contract CryptoLegacy {
 
   struct EncryptedData {
     bytes encryptedData;
+    uint aesCounter;
     bytes32 dataHash; // sha-3 hash
     bytes encryptedKeyParts; // packed array of key parts
     bytes[] suppliedKeyParts;
@@ -129,20 +130,38 @@ contract CryptoLegacy {
     bytes32[] keyPartHashes,
     bytes encryptedKeyParts,
     bytes _encryptedData,
+    uint aesCounter,
     bytes32 dataHash
   ) payable external
     ownerOnly()
     atState(States.CallForKeepers)
   {
-    uint timestamp = getBlockTimestamp();
-    uint _totalFinalReward = 0;
-
     encryptedData = EncryptedData({
       encryptedData: _encryptedData,
+      aesCounter: aesCounter,
       dataHash: dataHash,
       encryptedKeyParts: encryptedKeyParts,
       suppliedKeyParts: new bytes[](0)
     });
+
+    totalFinalReward = writeKeepers(selectedProposalIndices, keyPartHashes);
+
+    uint balance = this.balance;
+    require(balance >= totalFinalReward);
+
+    state = States.Active;
+    lastOwnerCheckInAt = getBlockTimestamp();
+  }
+
+
+  function writeKeepers(
+    uint[] selectedProposalIndices,
+    bytes32[] keyPartHashes
+  )
+  internal returns (uint)
+  {
+    uint timestamp = getBlockTimestamp();
+    uint _totalFinalReward = 0;
 
     for (uint i = 0; i < selectedProposalIndices.length; i++) {
       uint proposalIndex = selectedProposalIndices[i];
@@ -160,12 +179,7 @@ contract CryptoLegacy {
       _totalFinalReward = SafeMath.add(_totalFinalReward, finalReward);
     }
 
-    uint balance = this.balance;
-    require(balance >= _totalFinalReward);
-
-    state = States.Active;
-    totalFinalReward = _totalFinalReward;
-    lastOwnerCheckInAt = timestamp;
+    return _totalFinalReward;
   }
 
 
@@ -288,7 +302,7 @@ contract CryptoLegacy {
   // and 2) less than the current wall clock time. See:
   // https://github.com/ethereum/go-ethereum/blob/885c13c/consensus/ethash/consensus.go#L223
   //
-  function getBlockTimestamp() internal returns (uint) {
+  function getBlockTimestamp() internal constant returns (uint) {
     return now;
   }
 

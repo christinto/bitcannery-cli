@@ -108,6 +108,7 @@ contract('CryptoLegacy contract', (accounts) => {
       [keyPartHashes.keeper_1, keyPartHashes.keeper_3], // hashes of key parts
       '0xabcdef', // encrypted key parts, packed into byte array
       '0x123456', // encrypted data
+      42, // AES counter
       '0x678901', // hash of original data
     ]
   }
