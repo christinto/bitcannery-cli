@@ -1,17 +1,20 @@
 const assert = require('chai').assert
-const {web3, assertTxSucceeds, assertTxFails, increaseTimeSec, getAccountBalance}
-        = require('./helpers')
-const CryptoLegacy = artifacts.require('./CryptoLegacy.sol')
+const CryptoLegacy = artifacts.require('./CryptoLegacyDebug.sol')
+
+const {web3,
+  assertTxSucceeds,
+  assertTxFails,
+  getAccountBalance} = require('./helpers')
 
 const {States,
   assembleKeeperStruct,
   assembleProposalStruct} = require('./crypto-legacy-data-layout')
 
-contract('CryptoLegacy contract', function(accounts) {
+contract('CryptoLegacy contract', (accounts) => {
 
   function getAddresses() {
-    const [Alice, Bob, keeper_1, keeper_2, keeper_3, keeper_4] = accounts
-    return {Alice, Bob, keeper_1, keeper_2, keeper_3, keeper_4}
+    const [_, Alice, Bob, keeper_1, keeper_2, keeper_3, keeper_4, keeper_5, keeper_6] = accounts
+    return {Alice, Bob, keeper_1, keeper_2, keeper_3, keeper_4, keeper_5, keeper_6}
   }
 
   const addr = getAddresses()
@@ -66,15 +69,13 @@ contract('CryptoLegacy contract', function(accounts) {
     assert.equal(numProposals.toNumber(), 3)
   })
 
+  it(`doesn't allow to submit two proposals with same public key`, async () => {
+    await assertTxFails(contract.submitKeeperProposal(pubKeys.keeper_2, {from: addr.keeper_4}))
+  })
+
   it(`doesn't allow the same Keeper to submit a proposal twice`, async () => {
     await assertTxFails(contract.submitKeeperProposal(pubKeys.keeper_1, {from: addr.keeper_1})) // same key
     await assertTxFails(contract.submitKeeperProposal('0x123456', {from: addr.keeper_1})) // diff key
-  })
-
-  // FIXME: for some reason this fails intermittently
-  //
-  it.skip(`doesn't allow to submit two proposals with same public key`, async () => {
-    await assertTxFails(contract.submitKeeperProposal(pubKeys.keeper_2, {from: addr.keeper_4}))
   })
 
   it(`doesn't allow owner to submit a proposal`, async () => {
@@ -183,7 +184,8 @@ contract('CryptoLegacy contract', function(accounts) {
 
   it(`Keeper check-in transfers contract to CallForKeys state if owner `+
      `failed to check in in time`, async () => {
-    await increaseTimeSec(checkInIntervalSec * 2)
+
+    await assertTxSucceeds(contract.increaseTimeBy(checkInIntervalSec * 2))
     await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper_1}))
 
     const state = await contract.state()
