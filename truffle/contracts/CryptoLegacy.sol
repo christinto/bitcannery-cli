@@ -54,11 +54,7 @@ contract CryptoLegacy {
   uint public keepingFee;
   uint public finalReward;
 
-  // We can rely on the value of now (block.timestamp) for our purposes, as the consensus
-  // rule is that a block's timestamp must be 1) more than the parent's block timestamp;
-  // and 2) less than the current wall clock time. See:
-  // https://github.com/ethereum/go-ethereum/blob/885c13c/consensus/ethash/consensus.go#L223
-  uint public lastOwnerCheckInAt = now;
+  uint public lastOwnerCheckInAt;
 
   States public state = States.CallForKeepers;
 
@@ -136,6 +132,7 @@ contract CryptoLegacy {
     ownerOnly()
     atState(States.CallForKeepers)
   {
+    uint timestamp = getBlockTimestamp();
     uint _totalFinalReward = 0;
 
     encryptedData = EncryptedData({
@@ -152,15 +149,13 @@ contract CryptoLegacy {
       activeKeepers[proposal.keeperAddress] = ActiveKeeper({
         publicKey: proposal.publicKey,
         keyPartHash: keyPartHashes[i],
-        lastCheckInAt: now,
+        lastCheckInAt: timestamp,
         balance: 0,
         keyPartSupplied: false
       });
 
       activeKeepersAddresses.push(proposal.keeperAddress);
-
-      uint keeperFinalReward = finalReward;
-      _totalFinalReward = SafeMath.add(_totalFinalReward, keeperFinalReward);
+      _totalFinalReward = SafeMath.add(_totalFinalReward, finalReward);
     }
 
     uint balance = this.balance;
@@ -168,7 +163,7 @@ contract CryptoLegacy {
 
     state = States.Active;
     totalFinalReward = _totalFinalReward;
-    lastOwnerCheckInAt = now;
+    lastOwnerCheckInAt = timestamp;
   }
 
 
@@ -180,7 +175,7 @@ contract CryptoLegacy {
   {
     uint excessBalance = creditKeepers({requiredFinalReward: totalFinalReward});
 
-    lastOwnerCheckInAt = now;
+    lastOwnerCheckInAt = getBlockTimestamp();
 
     if (excessBalance > 0) {
       msg.sender.transfer(excessBalance);
@@ -191,7 +186,9 @@ contract CryptoLegacy {
   // Returns: excess balance that can be transferred back to owner.
   //
   function creditKeepers(uint requiredFinalReward) internal returns (uint) {
-    uint timeSinceLastOwnerCheckIn = SafeMath.sub(now, lastOwnerCheckInAt);
+    uint timestamp = getBlockTimestamp();
+
+    uint timeSinceLastOwnerCheckIn = SafeMath.sub(timestamp, lastOwnerCheckInAt);
     require(timeSinceLastOwnerCheckIn <= checkInInterval);
 
     uint keepingFeeMult = SafeMath.mul(KEEPING_FEE_ROUNDING_MULT, timeSinceLastOwnerCheckIn) / checkInInterval;
@@ -220,11 +217,13 @@ contract CryptoLegacy {
   function keeperCheckIn() external
     activeKeepersOnly()
   {
+    uint timestamp = getBlockTimestamp();
+
     ActiveKeeper storage keeper = activeKeepers[msg.sender];
-    keeper.lastCheckInAt = now;
+    keeper.lastCheckInAt = timestamp;
 
     if (state == States.Active) {
-      uint timeSinceLastOwnerCheckIn = SafeMath.sub(now, lastOwnerCheckInAt);
+      uint timeSinceLastOwnerCheckIn = SafeMath.sub(timestamp, lastOwnerCheckInAt);
       if (timeSinceLastOwnerCheckIn > checkInInterval) {
         state = States.CallForKeys;
         KeysNeeded();
@@ -280,6 +279,15 @@ contract CryptoLegacy {
     if (excessBalance > 0) {
       msg.sender.transfer(excessBalance);
     }
+  }
+
+  // We can rely on the value of now (block.timestamp) for our purposes, as the consensus
+  // rule is that a block's timestamp must be 1) more than the parent's block timestamp;
+  // and 2) less than the current wall clock time. See:
+  // https://github.com/ethereum/go-ethereum/blob/885c13c/consensus/ethash/consensus.go#L223
+  //
+  function getBlockTimestamp() internal returns (uint) {
+    return now;
   }
 
 }
