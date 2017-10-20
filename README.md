@@ -23,7 +23,7 @@ Open two terminals. In the first one, run geth (keep in mind that this command r
 ./run-geth.sh
 ```
 
-In the second terminal, run the tests and watch the output:
+Wait until `geth` starts and unlocks all accounts (should take 15-20 seconds). In the second terminal, run the tests and watch the output:
 
 ```shell
 # Terminal 2
