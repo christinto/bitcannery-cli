@@ -1,11 +1,7 @@
 const assert = require('chai').assert
 const CryptoLegacy = artifacts.require('./CryptoLegacyDebug.sol')
-const BigNumber = require('bignumber.js')
 
-const {States,
-  assembleKeeperStruct,
-  getActiveKeeperAddresses,
-  getActiveKeepers} = require('../utils/contract-api')
+const {assembleKeeperStruct} = require('../utils/contract-api')
 
 const {web3,
   assertTxSucceeds,
@@ -14,9 +10,11 @@ const {web3,
   getAccountBalances,
   getActiveKeepersBalances,
   stringify,
-  bigSum,
-  sum} = require('./helpers')
+  bigSum} = require('./helpers')
 
+//
+// TODO: test final reward calculations and transfers
+//
 
 contract('CryptoLegacy, balance calculations:', (accounts) => {
 
@@ -62,8 +60,8 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
       selectedKeyPartHashes, // keyPartHashes
       '0xaaabbbaaabbbaaabbb', // encryptedKeyParts
       '0xaaabbbaaabbbaaabbb', // _encryptedData
-      42, // aesCounter
       '0x112311231123112311', // dataHash
+      42, // aesCounter
     ]
 
     await assertTxFails(contract.acceptKeepers(

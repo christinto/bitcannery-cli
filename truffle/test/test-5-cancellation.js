@@ -1,11 +1,9 @@
 const assert = require('chai').assert
-const {web3, assertTxSucceeds, assertTxFails, increaseTimeSec, getAccountBalance}
-        = require('./helpers')
 const CryptoLegacy = artifacts.require('./CryptoLegacy.sol')
 
-const {States,
-  assembleKeeperStruct,
-  assembleProposalStruct} = require('../utils/contract-api')
+const {assertTxSucceeds, assertTxFails} = require('./helpers')
+const {States} = require('../utils/contract-api')
+
 
 function getAcceptKeepersParams() {
   const hash_1 = '0x1230000000000000000000000000000000000000000000000000000000000000'
@@ -19,6 +17,7 @@ function getAcceptKeepersParams() {
     42, // counter value for AES CTR mode
   ]
 }
+
 
 contract('CryptoLegacy, cancellation:', function(accounts) {
 

@@ -73,7 +73,7 @@ contract('CryptoLegacy, activation:', (accounts) => {
     ))
   })
 
-  it(`allows owner to accept selected Keeper proposals`, async () => {
+  it(`allows owner to accept selected Keeper proposals and activate the contract`, async () => {
     const [_ , [hash_1, hash_2]] = acceptKeepersParams
 
     await assertTxSucceeds(contract.acceptKeepers(...acceptKeepersParams,
@@ -95,6 +95,12 @@ contract('CryptoLegacy, activation:', (accounts) => {
   it(`accepting Keepers transfers contract to Active state`, async () => {
     const state = await contract.state()
     assert.equal(state.toNumber(), States.Active)
+  })
+
+  it(`doesn't allow owner to activate already activated contract`, async () => {
+    await assertTxFails(contract.acceptKeepers(...acceptKeepersParams,
+      {from: addr.Alice, value: 2 * finalReward}
+    ))
   })
 
 })

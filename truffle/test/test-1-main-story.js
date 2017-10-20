@@ -8,13 +8,8 @@ const {assertTxSucceeds,
   decryptLegacy,
   decryptKeyPart} = require('./helpers')
 
-const {keeperPrivateKeys,
-  keeperPublicKeys} = require('./data')
-
-const {States,
-  assembleKeeperStruct,
-  assembleProposalStruct,
-  assembleEncryptedDataStruct} = require('../utils/contract-api')
+const {keeperPublicKeys} = require('./data')
+const {States, assembleKeeperStruct, assembleEncryptedDataStruct} = require('../utils/contract-api')
 
 
 // TODO: cleanup main story by extracting some of the tests to different files.
@@ -70,11 +65,8 @@ contract('CryptoLegacy', (accounts) => {
     const selectedIndices = [0, 2]
     const aesCounter = 42
 
-    const {encryptedKeyParts,
-      keyPartHashes,
-      legacyDataHash,
-      encryptedLegacyData,
-      } = await prepareLegacyData(legacyText, selectedIndices, aesCounter)
+    const {encryptedKeyParts, keyPartHashes, legacyDataHash, encryptedLegacyData} =
+      await prepareLegacyData(legacyText, selectedIndices, aesCounter)
 
     return [
       selectedIndices, // selected proposal indices
@@ -135,21 +127,10 @@ contract('CryptoLegacy', (accounts) => {
     await assertTxFails(contract.supplyKey(''), {from: addr.keeper_1})
   })
 
-  it.skip(`accepted Keeper check-in sends right keeping fee to Keeper's account`, async () => {
-    const keeperToCheckIn = addr.keeper_3
-    const timeElapsedMultiplier = 0.5
-    // const fee = keepingFee * timeElapsedMultiplier
-    // const balanceBefore = await getAccountBalance(keeperToCheckIn)
-    // await increaseTimeSec(checkInIntervalSec * timeElapsedMultiplier)
-    await assertTxSucceeds(contract.keeperCheckIn({from: keeperToCheckIn}))
-    // const balanceAfter = await getAccountBalance(keeperToCheckIn)
-    // assert.equal(balanceAfter, balanceBefore + fee, 'should have sent keeping fee')
-  })
-
   it(`Keeper check-in transfers contract to CallForKeys state if owner `+
      `failed to check in in time`, async () => {
 
-    await assertTxSucceeds(contract.increaseTimeBy(checkInIntervalSec * 2))
+    await assertTxSucceeds(contract.increaseTimeBy(checkInIntervalSec + 1))
     await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper_1}))
 
     const state = await contract.state()
