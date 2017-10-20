@@ -1,10 +1,10 @@
 const crypto = require('crypto')
-const packingUtils = require('./pack')
-const prefixUtils = require('./prefix')
-const encryption = require('./encryption')
+const packingUtils = require('./utils/pack')
+const prefixUtils = require('./utils/prefix')
+const encryption = require('./utils/encryption')
 
 const {bobPrivateKey, bobPublicKey, keeperPrivateKeys, keeperPublicKeys,
-        numKeepersToRecover, aesCounter} = require('./samples')
+        numKeepersToRecover, aesCounter} = require('./test/data')
 
 const legacyData = '0x42' // hex string w/ prefix 0x
 

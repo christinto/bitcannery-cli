@@ -5,7 +5,7 @@ const CryptoLegacy = artifacts.require('./CryptoLegacy.sol')
 
 const {States,
   assembleKeeperStruct,
-  assembleProposalStruct} = require('./crypto-legacy-data-layout')
+  assembleProposalStruct} = require('../utils/contract-api')
 
 function getAcceptKeepersParams() {
   const hash_1 = '0x1230000000000000000000000000000000000000000000000000000000000000'
@@ -16,10 +16,11 @@ function getAcceptKeepersParams() {
     '0xabcdef', // encrypted key parts, packed into byte array
     '0x123456', // encrypted data
     '0x678901', // hash of original data
+    42, // counter value for AES CTR mode
   ]
 }
 
-contract('CryptoLegacy cancelling contract', function(accounts) {
+contract('CryptoLegacy, cancellation:', function(accounts) {
 
   function getAddresses() {
     const [Alice, Bob, ...keepers] = accounts
@@ -53,15 +54,15 @@ contract('CryptoLegacy cancelling contract', function(accounts) {
     )
   })
 
-  it('keepers couldn\'t cancel contract', async () => {
+  it(`keepers couldn't cancel contract`, async () => {
     await assertTxFails(contract.cancel({from: addr.keeper_1}))
   })
 
-  it('owner couldn\'t cancel contract while calling for keepers', async () => {
+  it(`owner couldn't cancel contract while calling for keepers`, async () => {
     await assertTxFails(contract.cancel({from: addr.Alice}))
   })
 
-  it('owner could accept keepers', async () => {
+  it(`owner could accept keepers`, async () => {
     await assertTxSucceeds(contract.submitKeeperProposal(pubKeys.keeper_1, {from: addr.keeper_1}))
     await assertTxSucceeds(contract.submitKeeperProposal(pubKeys.keeper_2, {from: addr.keeper_2}))
     await assertTxSucceeds(contract.submitKeeperProposal(pubKeys.keeper_3, {from: addr.keeper_3}))
@@ -70,29 +71,30 @@ contract('CryptoLegacy cancelling contract', function(accounts) {
     ))
   })
 
-  it('keeper couldn\'t cancel contract in active state', async () => {
+  it(`keeper couldn't cancel contract in active state`, async () => {
     await assertTxFails(contract.cancel({from: addr.keeper_1}))
   })
 
-  it('bob couldn\'t cancel contract in active state', async () => {
+  it(`bob couldn't cancel contract in active state`, async () => {
     await assertTxFails(contract.cancel({from: addr.Bob}))
   })
 
-  it('keeper could check in to active contract', async () => {
+  it(`keeper could check in to active contract`, async () => {
     await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper_1}))
   })
 
-  it('owner could cancel contract in active state', async () => {
+  it(`owner could cancel contract in active state`, async () => {
     await assertTxSucceeds(contract.cancel({from: addr.Alice}))
     const state = await contract.state()
     assert.equal(state.toNumber(), States.Cancelled)
   })
 
-  it('keeper could check in while contract is cancelled', async () => {
+  it(`keeper could check in while contract is cancelled`, async () => {
     await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper_1}))
   })
 
-  it('keeper couldn\'t supply key part while contract is cancelled', async () => {
+  it(`keeper couldn't supply key part while contract is cancelled`, async () => {
+    // FIXME: provide valid key part here so we're actually checking what we want to
     await assertTxFails(contract.supplyKey('ururu', {from: addr.keeper_1}))
   })
 
