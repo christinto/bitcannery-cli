@@ -203,11 +203,11 @@ contract('CryptoLegacy contract', (accounts) => {
   })
 
   it('not accepted keeper couldn\'t send key', async () => {
-    assertTxFails(contract.supplyKey('arara', {from: addr.keeper_2}))
+    await assertTxFails(contract.supplyKey('arara', {from: addr.keeper_2}))
   })
 
   it('accepted keeper couldn\'t send not valid key part', async () => {
-    assertTxFails(contract.supplyKey('ururu', {from: addr.keeper_1}))
+    await assertTxFails(contract.supplyKey('ururu', {from: addr.keeper_1}))
   })
 
   it('accepted keeper could send valid key part and receive final reward', async () => {
