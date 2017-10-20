@@ -76,9 +76,14 @@ function unpackElliptic(packedElliptic) {
   }
 }
 
+function unpackEllipticParts(packedEllipticParts, partsCount) {
+  return unpack(packedEllipticParts, partsCount).map(unpackElliptic)
+}
+
 module.exports = {
   pack,
   unpack,
   packElliptic,
   unpackElliptic,
+  unpackEllipticParts,
 }

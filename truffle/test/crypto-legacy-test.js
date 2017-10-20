@@ -1,15 +1,23 @@
 const assert = require('chai').assert
 const CryptoLegacy = artifacts.require('./CryptoLegacyDebug.sol')
-const BigNumber = require('bignumber.js')
 
 const {web3,
   assertTxSucceeds,
   assertTxFails,
-  getAccountBalance} = require('./helpers')
+  getAccountBalance,
+  prepareLegacyData,
+  decryptLegacy,
+  decryptKeyPart,} = require('./helpers')
+
+const {keeperPrivateKeys, keeperPublicKeys} = require('../utils/samples')
 
 const {States,
   assembleKeeperStruct,
   assembleProposalStruct} = require('./crypto-legacy-data-layout')
+
+const legacyText = 'So long and thanks for all the fish'
+
+const aesCounter = 42
 
 contract('CryptoLegacy contract', (accounts) => {
 
@@ -19,23 +27,6 @@ contract('CryptoLegacy contract', (accounts) => {
   }
 
   const addr = getAddresses()
-
-  const pubKeys = {
-    keeper_1: '0xaabbcc',
-    keeper_2: '0xbbccdd',
-    keeper_3: '0xccddee',
-    keeper_4: '0xddeeff',
-  }
-
-  const keyParts = {
-    keeper_1: '0x1234567890',
-    keeper_3: '0xababccddef',
-  }
-
-  const keyPartHashes = {
-    keeper_1: web3.utils.soliditySha3(keyParts.keeper_1),
-    keeper_3: web3.utils.soliditySha3(keyParts.keeper_3),
-  }
 
   const checkInIntervalSec = 2 * 60 * 60 // 2 hours
   const keepingFee = 100
@@ -63,34 +54,34 @@ contract('CryptoLegacy contract', (accounts) => {
   })
 
   it(`allows first Keeper to submit a proposal`, async () => {
-    await assertTxSucceeds(contract.submitKeeperProposal(pubKeys.keeper_1, {from: addr.keeper_1}))
+    await assertTxSucceeds(contract.submitKeeperProposal(keeperPublicKeys[0], {from: addr.keeper_1}))
     const numProposals = await contract.getNumProposals()
     assert.equal(numProposals.toNumber(), 1)
   })
 
   it(`allows second Keeper to submit a proposal`, async () => {
-    await assertTxSucceeds(contract.submitKeeperProposal(pubKeys.keeper_2, {from: addr.keeper_2}))
+    await assertTxSucceeds(contract.submitKeeperProposal(keeperPublicKeys[1], {from: addr.keeper_2}))
     const numProposals = await contract.getNumProposals()
     assert.equal(numProposals.toNumber(), 2)
   })
 
   it(`allows third Keeper to submit a proposal`, async () => {
-    await assertTxSucceeds(contract.submitKeeperProposal(pubKeys.keeper_3, {from: addr.keeper_3}))
+    await assertTxSucceeds(contract.submitKeeperProposal(keeperPublicKeys[2], {from: addr.keeper_3}))
     const numProposals = await contract.getNumProposals()
     assert.equal(numProposals.toNumber(), 3)
   })
 
   it(`doesn't allow to submit two proposals with same public key`, async () => {
-    await assertTxFails(contract.submitKeeperProposal(pubKeys.keeper_2, {from: addr.keeper_4}))
+    await assertTxFails(contract.submitKeeperProposal(keeperPublicKeys[1], {from: addr.keeper_4}))
   })
 
   it(`doesn't allow the same Keeper to submit a proposal twice`, async () => {
-    await assertTxFails(contract.submitKeeperProposal(pubKeys.keeper_1, {from: addr.keeper_1})) // same key
+    await assertTxFails(contract.submitKeeperProposal(keeperPublicKeys[0], {from: addr.keeper_1})) // same key
     await assertTxFails(contract.submitKeeperProposal('0x123456', {from: addr.keeper_1})) // diff key
   })
 
   it(`doesn't allow owner to submit a proposal`, async () => {
-    await assertTxFails(contract.submitKeeperProposal(pubKeys.keeper_1, {from: addr.Alice})) // same key
+    await assertTxFails(contract.submitKeeperProposal(keeperPublicKeys[0], {from: addr.Alice})) // same key
     await assertTxFails(contract.submitKeeperProposal('0x123456', {from: addr.Alice})) // diff key
   })
 
@@ -102,19 +93,28 @@ contract('CryptoLegacy contract', (accounts) => {
     await assertTxFails(contract.submitKeeperProposal(longPubKey, {from: addr.keeper_4}))
   })
 
-  function getAcceptKeepersParams() {
+  async function getAcceptKeepersParams() {
+    const selectedIndices = [0, 2]
+
+    const {encryptedKeyParts,
+      keyPartHashes,
+      legacyDataHash,
+      encryptedLegacyData,
+      } = await prepareLegacyData(legacyText, selectedIndices, aesCounter)
+
     return [
-      [0, 2], // selected proposal indices
-      [keyPartHashes.keeper_1, keyPartHashes.keeper_3], // hashes of key parts
-      '0xabcdef', // encrypted key parts, packed into byte array
-      '0x123456', // encrypted data
-      42, // AES counter
-      '0x678901', // hash of original data
+      selectedIndices, // selected proposal indices
+      keyPartHashes, // hashes of key parts
+      encryptedKeyParts, // encrypted key parts, packed into byte array
+      encryptedLegacyData, // encrypted data
+      legacyDataHash, // hash of original data
+      aesCounter, //aesCounter
     ]
   }
 
   it('Keepers couldn\'t accept Keepers', async () => {
-    await assertTxFails(contract.acceptKeepers(...getAcceptKeepersParams(),
+    const params = await getAcceptKeepersParams()
+    await assertTxFails(contract.acceptKeepers(...params,
       {from: addr.keeper_1, value: 2 * finalReward}))
   })
 
@@ -124,7 +124,7 @@ contract('CryptoLegacy contract', (accounts) => {
 
   it(`owner couldn\'t accept not proposed Keepers`, async () => {
 
-    const callParams = getAcceptKeepersParams()
+    const callParams = await getAcceptKeepersParams()
 
     const [acceptinIndices , [hash_1, hash_2], ...other] = callParams
 
@@ -138,7 +138,7 @@ contract('CryptoLegacy contract', (accounts) => {
 
   it(`allows owner to accept selected Keeper proposals`, async () => {
 
-    const callParams = getAcceptKeepersParams()
+    const callParams = await getAcceptKeepersParams()
 
     const [_ , [hash_1, hash_2]] = callParams
 
@@ -153,11 +153,11 @@ contract('CryptoLegacy contract', (accounts) => {
     assert.equal(state.toNumber(), States.Active)
 
     const firstKeeper = assembleKeeperStruct(await contract.activeKeepers(addr.keeper_1))
-    assert.equal(firstKeeper.publicKey, pubKeys.keeper_1)
+    assert.equal(firstKeeper.publicKey, keeperPublicKeys[0])
     assert.equal(firstKeeper.keyPartHash, hash_1)
 
     const secondKeeper = assembleKeeperStruct(await contract.activeKeepers(addr.keeper_3))
-    assert.equal(secondKeeper.publicKey, pubKeys.keeper_3)
+    assert.equal(secondKeeper.publicKey, keeperPublicKeys[2])
     assert.equal(secondKeeper.keyPartHash, hash_2)
   })
 
@@ -173,12 +173,12 @@ contract('CryptoLegacy contract', (accounts) => {
     await assertTxFails(contract.keeperCheckIn({from: addr.keeper_2}))
   })
 
-  it.skip('accepted Keeper could check in', async () => {
+  it('accepted Keeper could check in', async () => {
     await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper_1}))
   })
 
   it('keeper could send key only after Termination event', async () => {
-    await assertTxFails(contract.supplyKey(keyParts.keeper_1), {from: addr.keeper_1})
+    await assertTxFails(contract.supplyKey(''), {from: addr.keeper_1})
   })
 
   it('accepted Keeper check-in sends right keeping fee to Keeper\'s account', async () => {
@@ -203,27 +203,44 @@ contract('CryptoLegacy contract', (accounts) => {
   })
 
   it('not accepted keeper couldn\'t send key', async () => {
-    await assertTxFails(contract.supplyKey('arara', {from: addr.keeper_2}))
+    assertTxFails(contract.supplyKey('arara', {from: addr.keeper_2}))
   })
 
   it('accepted keeper couldn\'t send not valid key part', async () => {
-    await assertTxFails(contract.supplyKey('ururu', {from: addr.keeper_1}))
+    assertTxFails(contract.supplyKey('ururu', {from: addr.keeper_1}))
   })
 
   it('accepted keeper could send valid key part and receive final reward', async () => {
-    const balanceBefore = await getAccountBalance(addr.keeper_1)
-    const {txPriceWei} = await assertTxSucceeds(contract.supplyKey(keyParts.keeper_1, {from: addr.keeper_1}))
-    const balanceAfter = await getAccountBalance(addr.keeper_1)
+    const keeperToGetReward = addr.keeper_1
+    const balanceBefore = await getAccountBalance(keeperToGetReward)
+    const [_, __, ___, encryptedKeyParts] = await contract.encryptedData()
+    const decryptedKeyPart = await decryptKeyPart(encryptedKeyParts, 0, 0)
+    const {txPriceWei} = await assertTxSucceeds(contract.supplyKey(decryptedKeyPart, {from: keeperToGetReward}))
+    const balanceAfter = await getAccountBalance(keeperToGetReward)
     const expectedBalance = balanceBefore.plus(finalReward).minus(txPriceWei)
-    assert.equal(balanceAfter.toString(), expectedBalance.toString())
+    assert.equal(balanceAfter.toString(), expectedBalance.toString(), 'should have sent final reward')
   })
 
   it('second accepted keeper could send valid key part and receive final reward', async () => {
-    const balanceBefore = await getAccountBalance(addr.keeper_3)
-    const {txPriceWei} = await assertTxSucceeds(contract.supplyKey(keyParts.keeper_3, {from: addr.keeper_3}))
-    const balanceAfter = await getAccountBalance(addr.keeper_3)
+    const keeperToGetReward = addr.keeper_3
+    const balanceBefore = await getAccountBalance(keeperToGetReward)
+    const [_, __, ___, encryptedKeyParts] = await contract.encryptedData()
+    const decryptedKeyPart = await decryptKeyPart(encryptedKeyParts, 1, 2)
+    const {txPriceWei} = await assertTxSucceeds(contract.supplyKey(decryptedKeyPart, {from: keeperToGetReward}))
+    const balanceAfter = await getAccountBalance(keeperToGetReward)
     const expectedBalance = balanceBefore.plus(finalReward).minus(txPriceWei)
-    assert.equal(balanceAfter.toString(), expectedBalance.toString())
+    assert.equal(balanceAfter.toString(), expectedBalance.toString(), 'should have sent final reward')
+  })
+
+  it('receipent could decrypt legacy data', async () => {
+    const [
+      encryptedData,
+      aesCounter,
+      dataHash,
+    ] = await contract.encryptedData()
+    const suppliedKeyParts = [await contract.getSuppliedKeyPart(0), await contract.getSuppliedKeyPart(1)]
+    const decryptedLegacy = await decryptLegacy(encryptedData, dataHash, suppliedKeyParts, aesCounter.toNumber())
+    assert.equal(decryptedLegacy, legacyText, 'should decrypt legacy')
   })
 
 })

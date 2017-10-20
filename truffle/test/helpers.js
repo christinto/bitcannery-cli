@@ -4,6 +4,11 @@ const BigNumber = require('bignumber.js')
 const Web3 = require('web3')
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'))
 
+const encryption = require('../utils/encryption')
+const {unpackEllipticParts} = require('../utils/pack')
+const {trim0x, ensure0x} = require('../utils/prefix')
+const {bobPrivateKey, bobPublicKey, keeperPrivateKeys, keeperPublicKeys,
+        numKeepersToRecover} = require('../utils/samples')
 
 async function assertTxFails(txResultPromise) {
   const txProps = await inspectTransaction(txResultPromise)
@@ -52,6 +57,35 @@ async function getAccountBalance(account) {
   return new BigNumber(await web3.eth.getBalance(account))
 }
 
+async function prepareLegacyData(legacyString, selectedKeeperIndices, aesCounter) {
+  return await encryption.encryptData(
+    ensure0x(new Buffer(legacyString).toString('hex')),
+    bobPublicKey,
+    keeperPublicKeys.filter((_, index) => selectedKeeperIndices.indexOf(index) != -1),
+    numKeepersToRecover,
+    aesCounter
+  )
+}
+
+async function decryptLegacy(encryptedData, dataHash, suppliedKeyParts, aesCounter) {
+  const decrypted = await encryption.decryptData(
+    encryptedData,
+    dataHash,
+    bobPrivateKey,
+    suppliedKeyParts,
+    aesCounter
+    )
+  return Buffer.from(trim0x(decrypted), 'hex').toString('utf8')
+}
+
+async function decryptKeyPart(encryptedKeyParts, keeperSubmitedPartIndex, keeperIndex) {
+  const keyParts = unpackEllipticParts(trim0x(encryptedKeyParts), 2)
+  return await encryption.ecDecrypt(
+      keyParts[keeperSubmitedPartIndex],
+      keeperPrivateKeys[keeperIndex]
+    )
+}
+
 
 module.exports = {
   web3,
@@ -60,4 +94,7 @@ module.exports = {
   inspectTransaction,
   increaseTimeSec,
   getAccountBalance,
+  prepareLegacyData,
+  decryptKeyPart,
+  decryptLegacy,
 }

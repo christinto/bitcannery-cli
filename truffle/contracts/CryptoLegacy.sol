@@ -101,6 +101,16 @@ contract CryptoLegacy {
   }
 
 
+  function getNumSuppliedKeyParts() external constant returns (uint) {
+    return encryptedData.suppliedKeyParts.length;
+  }
+
+
+  function getSuppliedKeyPart(uint index) external constant returns (bytes) {
+    return encryptedData.suppliedKeyParts[index];
+  }
+
+
   // Called by a Keeper to submit their proposal.
   //
   function submitKeeperProposal(bytes publicKey) external
@@ -130,8 +140,8 @@ contract CryptoLegacy {
     bytes32[] keyPartHashes,
     bytes encryptedKeyParts,
     bytes _encryptedData,
-    uint aesCounter,
-    bytes32 dataHash
+    bytes32 dataHash,
+    uint aesCounter
   ) payable external
     ownerOnly()
     atState(States.CallForKeepers)

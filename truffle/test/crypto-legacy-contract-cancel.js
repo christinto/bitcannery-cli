@@ -88,8 +88,8 @@ contract('CryptoLegacy cancelling contract', function(accounts) {
     assert.equal(state.toNumber(), States.Cancelled)
   })
 
-  it('keeper couldn\'t check in while contract is cancelled', async () => {
-    await assertTxFails(contract.keeperCheckIn({from: addr.keeper_1}))
+  it('keeper could check in while contract is cancelled', async () => {
+    await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper_1}))
   })
 
   it('keeper couldn\'t supply key part while contract is cancelled', async () => {
