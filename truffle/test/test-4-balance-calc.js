@@ -14,7 +14,8 @@ const {web3,
   getAccountBalances,
   getActiveKeepersBalances,
   stringify,
-  bigSum} = require('./helpers')
+  bigSum,
+  sum} = require('./helpers')
 
 
 contract('CryptoLegacy, balance calculations:', (accounts) => {
@@ -132,17 +133,15 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
     const keeper1 = assembleKeeperStruct(await contract.activeKeepers(addr.keeper[1]))
     const keeper2 = assembleKeeperStruct(await contract.activeKeepers(addr.keeper[2]))
 
-    assert.equal(keeper1.balance, expectedKeepersBalance[0], `keeper 1 balance`)
-    assert.equal(keeper2.balance, expectedKeepersBalance[1], `keeper 2 balance`)
+    assert.bignumEqual(keeper1.balance, expectedKeepersBalance[0], `keeper 1 balance`)
+    assert.bignumEqual(keeper2.balance, expectedKeepersBalance[1], `keeper 2 balance`)
 
     // check how much is taken from Alice's wallet
 
     const expectedPostCheckInWalletBalanceAlice =
       preCheckInWalletBalanceAlice.minus(expectedKeepersTotalBalance).minus(txPriceWei)
 
-    assert.equal(
-      postCheckInWalletBalanceAlice.toString(),
-      expectedPostCheckInWalletBalanceAlice.toString(),
+    assert.bignumEqual(postCheckInWalletBalanceAlice, expectedPostCheckInWalletBalanceAlice,
       `expected amount is taken from Alice's wallet`)
 
     // check how much is sent to contract's address
@@ -150,9 +149,7 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
     const expectedPostCheckInBalanceContract =
       preCheckInBalanceContract.plus(expectedKeepersTotalBalance)
 
-    assert.equal(
-      postCheckInBalanceContract.toString(),
-      expectedPostCheckInBalanceContract.toString(),
+    assert.bignumEqual(postCheckInBalanceContract, expectedPostCheckInBalanceContract,
       `expected amount is sent to contract's address`)
   })
 
@@ -212,14 +209,10 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
     const expectedPostCheckInBalanceContract =
       preCheckInBalanceContract.plus(expectedKeepersTotalBalanceIncrease)
 
-    assert.equal(
-      postCheckInWalletBalanceAlice.toString(),
-      expectedPostCheckInWalletBalanceAlice.toString(),
+    assert.bignumEqual(postCheckInWalletBalanceAlice, expectedPostCheckInWalletBalanceAlice,
       `Alice's balance`)
 
-    assert.equal(
-      postCheckInBalanceContract.toString(),
-      expectedPostCheckInBalanceContract.toString(),
+    assert.bignumEqual(postCheckInBalanceContract, expectedPostCheckInBalanceContract,
       `contract's balance`)
   })
 
@@ -239,30 +232,127 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
     const postCheckInKeeperWalletBalances = await getAccountBalances(addr.keeper[1], addr.keeper[2])
     const postCheckInContractBalance = await getAccountBalance(contract.address)
 
-    assert.equal(
-      postCheckInKeeperBalances[0].toString(),
-      '0',
+    assert.bignumEqual(
+      postCheckInKeeperBalances[0],
+      0,
       `first Keeper balance`)
 
-    assert.equal(
-      postCheckInKeeperBalances[1].toString(),
-      preCheckInKeeperBalances[1].toString(),
+    assert.bignumEqual(
+      postCheckInKeeperBalances[1],
+      preCheckInKeeperBalances[1],
       `second Keeper balance`)
 
-    const expectedPostCheckInKeeperWalletBalances = [
+    assert.bignumEqual(
+      postCheckInKeeperWalletBalances[0],
       preCheckInKeeperWalletBalances[0].plus(preCheckInKeeperBalances[0]).minus(txPriceWei),
-      preCheckInKeeperWalletBalances[1]
-    ]
-
-    assert.equal(
-      postCheckInKeeperWalletBalances[0].toString(),
-      expectedPostCheckInKeeperWalletBalances[0].toString(),
       `first Keeper wallet balance`)
 
-    assert.equal(
-      postCheckInKeeperWalletBalances[1].toString(),
-      expectedPostCheckInKeeperWalletBalances[1].toString(),
+    assert.bignumEqual(
+      postCheckInKeeperWalletBalances[1],
+      preCheckInKeeperWalletBalances[1],
       `second Keeper wallet balance`)
+
+    assert.bignumEqual(
+      postCheckInContractBalance,
+      preCheckInContractBalance.minus(preCheckInKeeperBalances[0]),
+      `contract balance`)
+  })
+
+
+  it(`cancelling a contract credits all Keepers as if it was a check-in, and sends all ` +
+     `excess funds left in the contract's wallet to Alice`, async () => {
+
+    const checkInIntervalFraction = 1/2
+    const timePassedSinceLastCheckIn = Math.floor(checkInIntervalSec * checkInIntervalFraction)
+
+    const expectedKeeperBalanceIncreases = [
+      Math.floor(checkInIntervalFraction * keepingFee),
+      Math.floor(checkInIntervalFraction * keepingFee),
+    ]
+
+    // obtaining pre-cancel balances
+
+    const preCancelKeeperBalances = await getActiveKeepersBalances(addr.keeper[1], addr.keeper[2])
+
+    const expectedPostCancelKeeperBalances = preCancelKeeperBalances.map(
+      (bal, i) => bal.add(expectedKeeperBalanceIncreases[i])
+    )
+
+    const expectedPostCancelKeepersTotalBalance = bigSum(expectedPostCancelKeeperBalances)
+
+    const [preCancelWalletBalanceAlice, preCancelBalanceContract] =
+      await getAccountBalances(addr.Alice, contract.address)
+
+    // this is a pre-condition for this test, not contract logic check
+    assert(preCancelBalanceContract.greaterThan(expectedPostCancelKeepersTotalBalance),
+      `contract balance precondition`)
+
+    // cancelling contract after some time since last check-in passes
+
+    await assertTxSucceeds(contract.increaseTimeBy(timePassedSinceLastCheckIn),
+      `increasing time`)
+
+    const {txPriceWei} = await assertTxSucceeds(contract.cancel(
+      {from: addr.Alice, value: 0}),
+      `cancelling the contract`)
+
+    // obtaining post-cancel balances
+
+    const postCancelKeeperBalances = await getActiveKeepersBalances(addr.keeper[1], addr.keeper[2])
+
+    const [postCancelWalletBalanceAlice, postCancelBalanceContract] =
+      await getAccountBalances(addr.Alice, contract.address)
+
+    // checks
+
+    assert.deepEqual(
+      postCancelKeeperBalances.map(stringify),
+      expectedPostCancelKeeperBalances.map(stringify),
+      `keeper balances`)
+
+    assert.bignumEqual(postCancelBalanceContract, expectedPostCancelKeepersTotalBalance,
+      `contract's balance`)
+
+    const expectedPostCancelWalletBalanceAlice = preCancelWalletBalanceAlice
+      .plus(preCancelBalanceContract)
+      .minus(expectedPostCancelKeepersTotalBalance)
+      .minus(txPriceWei)
+
+    assert.bignumEqual(postCancelWalletBalanceAlice, expectedPostCancelWalletBalanceAlice,
+      `Alice's wallet balance`)
+  })
+
+
+  it(`Keeper can withdraw his balance after cancellation`, async () => {
+    const preCheckInKeeperBalances = await getActiveKeepersBalances(addr.keeper[1], addr.keeper[2])
+    const preCheckInKeeperWalletBalances = await getAccountBalances(addr.keeper[1], addr.keeper[2])
+    const preCheckInContractBalance = await getAccountBalance(contract.address)
+
+    const {txPriceWei} = await assertTxSucceeds(
+      contract.keeperCheckIn({from: addr.keeper[2]}),
+      `Keeper check-in`
+    )
+
+    const postCheckInKeeperBalances = await getActiveKeepersBalances(addr.keeper[1], addr.keeper[2])
+    const postCheckInKeeperWalletBalances = await getAccountBalances(addr.keeper[1], addr.keeper[2])
+    const postCheckInContractBalance = await getAccountBalance(contract.address)
+
+    assert.bignumEqual(postCheckInKeeperBalances[1], 0,
+      `second Keeper balance`)
+
+    assert.bignumEqual(postCheckInKeeperBalances[0], preCheckInKeeperBalances[0],
+      `first Keeper balance`)
+
+    assert.bignumEqual(postCheckInKeeperWalletBalances[1],
+      preCheckInKeeperWalletBalances[1].plus(preCheckInKeeperBalances[1]).minus(txPriceWei),
+      `second Keeper wallet balance`)
+
+    assert.bignumEqual(postCheckInKeeperWalletBalances[0], preCheckInKeeperWalletBalances[0],
+      `first Keeper wallet balance`)
+
+    assert.bignumEqual(postCheckInContractBalance,
+      preCheckInContractBalance.minus(preCheckInKeeperBalances[1]),
+      `contract balance`)
   })
 
 })
