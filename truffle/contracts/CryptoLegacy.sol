@@ -31,13 +31,17 @@ contract CryptoLegacy {
   struct KeeperProposal {
     address keeperAddress;
     bytes publicKey; // 64-byte
+    uint keepingFee;
+    uint finalReward;
   }
 
   struct ActiveKeeper {
     bytes publicKey; // 64-byte
     bytes32 keyPartHash; // sha-3 hash
-    uint lastCheckInAt;
+    uint keepingFee;
+    uint finalReward;
     uint balance;
+    uint lastCheckInAt;
     bool keyPartSupplied;
   }
 
@@ -50,10 +54,7 @@ contract CryptoLegacy {
   }
 
   address public owner = msg.sender;
-
   uint public checkInInterval;
-  uint public keepingFee;
-  uint public finalReward;
 
   uint public lastOwnerCheckInAt;
 
@@ -83,11 +84,9 @@ contract CryptoLegacy {
   // Called by the person who possesses the data they wish to transfer.
   // This person becomes the owner of the contract.
   //
-  function CryptoLegacy(uint _checkInInterval, uint _keepingFee, uint _finalReward) public {
+  function CryptoLegacy(uint _checkInInterval) public {
     require(_checkInInterval >= MINIMUM_CHECK_IN_INTERVAL);
     checkInInterval = _checkInInterval;
-    keepingFee = _keepingFee;
-    finalReward = _finalReward;
   }
 
 
@@ -113,7 +112,7 @@ contract CryptoLegacy {
 
   // Called by a Keeper to submit their proposal.
   //
-  function submitKeeperProposal(bytes publicKey) external
+  function submitKeeperProposal(bytes publicKey, uint keepingFee, uint finalReward) external
     atState(States.CallForKeepers)
   {
     require(msg.sender != owner);
@@ -125,7 +124,9 @@ contract CryptoLegacy {
 
     keeperProposals.push(KeeperProposal({
       keeperAddress: msg.sender,
-      publicKey: publicKey
+      publicKey: publicKey,
+      keepingFee: keepingFee,
+      finalReward: finalReward
     }));
 
     proposedKeeperFlags[msg.sender] = true;
@@ -180,13 +181,15 @@ contract CryptoLegacy {
       activeKeepers[proposal.keeperAddress] = ActiveKeeper({
         publicKey: proposal.publicKey,
         keyPartHash: keyPartHashes[i],
+        keepingFee: proposal.keepingFee,
+        finalReward: proposal.finalReward,
         lastCheckInAt: timestamp,
         balance: 0,
         keyPartSupplied: false
       });
 
       activeKeepersAddresses.push(proposal.keeperAddress);
-      _totalFinalReward = SafeMath.add(_totalFinalReward, finalReward);
+      _totalFinalReward = SafeMath.add(_totalFinalReward, proposal.finalReward);
     }
 
     return _totalFinalReward;
@@ -222,7 +225,7 @@ contract CryptoLegacy {
 
     for (uint i = 0; i < activeKeepersAddresses.length; i++) {
       ActiveKeeper storage keeper = activeKeepers[activeKeepersAddresses[i]];
-      uint balanceToAdd = SafeMath.mul(keepingFee, keepingFeeMult) / KEEPING_FEE_ROUNDING_MULT;
+      uint balanceToAdd = SafeMath.mul(keeper.keepingFee, keepingFeeMult) / KEEPING_FEE_ROUNDING_MULT;
       keeper.balance = SafeMath.add(keeper.balance, balanceToAdd);
       keepersBalance = SafeMath.add(keepersBalance, keeper.balance);
     }
@@ -279,8 +282,7 @@ contract CryptoLegacy {
     encryptedData.suppliedKeyParts.push(keyPart);
     keeper.keyPartSupplied = true;
 
-    uint keeperFinalReward = finalReward;
-    uint toBeTransferred = keeper.balance + keeperFinalReward;
+    uint toBeTransferred = keeper.balance + keeper.finalReward;
     keeper.balance = 0;
 
     msg.sender.transfer(toBeTransferred);
