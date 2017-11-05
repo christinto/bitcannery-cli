@@ -40,6 +40,13 @@ async function assertTxSucceeds(txResultPromise, message) {
 }
 
 
+async function assertTxSucceedsGeneratingEvents(txResultPromise, expectedEvents, message) {
+  const txProps = await assertTxSucceeds(txResultPromise, message)
+  assert.deepEqual(txProps.events, expectedEvents, message ? `${message}, tx events` : `tx events`)
+  return txProps
+}
+
+
 async function inspectTransaction(txResultPromise) {
   const txResult = await txResultPromise
   const tx = await web3.eth.getTransaction(txResult.tx)
@@ -48,7 +55,10 @@ async function inspectTransaction(txResultPromise) {
     ? receipt.status === '0x1' || receipt.status === 1 // Since Byzantium fork
     : receipt.cumulativeGasUsed < tx.gas // Before Byzantium fork (current version of TestRPC)
   const txPriceWei = new BigNumber(tx.gasPrice).times(receipt.cumulativeGasUsed)
-  return {result: txResult, success, txPriceWei}
+  const events = txResult.logs
+    .map(log => log.event ? {name: log.event, args: log.args} : null)
+    .filter(x => !!x)
+  return {result: txResult, success, txPriceWei, events}
 }
 
 
@@ -149,6 +159,7 @@ module.exports = {
   web3,
   assertTxFails,
   assertTxSucceeds,
+  assertTxSucceedsGeneratingEvents,
   inspectTransaction,
   printEvents,
   getAccountBalance,
