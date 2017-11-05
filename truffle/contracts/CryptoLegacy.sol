@@ -4,6 +4,7 @@ import "./SafeMath.sol";
 
 interface CryptoLegacyBaseAPI {
   function getVersion() public view returns (uint);
+  function getOwner() public view returns (address);
   function isAcceptingKeeperProposals() public view returns (bool);
 }
 
@@ -109,6 +110,11 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
 
   function getVersion() public view returns (uint) {
     return VERSION;
+  }
+
+
+  function getOwner() public view returns (address) {
+    return owner;
   }
 
 
@@ -334,6 +340,8 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     require(continuationContractAddress == 0);
 
     CryptoLegacyBaseAPI continuationContract = CryptoLegacyBaseAPI(_continuationContractAddress);
+
+    require(continuationContract.getOwner() == getOwner());
     require(continuationContract.getVersion() >= getVersion());
     require(continuationContract.isAcceptingKeeperProposals());
 
