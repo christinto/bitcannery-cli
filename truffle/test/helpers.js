@@ -100,15 +100,15 @@ assert.bignumEqual = function assertBalancesEqual(bal1, bal2, message) {
 // contract-specific helpers
 
 
-async function getActiveKeepersBalances(...keeperAddrs) {
-  const keepers = await getActiveKeepers(keeperAddrs)
+async function getActiveKeepersBalances(contract, keeperAddrs) {
+  const keepers = await getActiveKeepers(contract, keeperAddrs)
   return keepers.map(keeper => keeper.balance)
 }
 
 
 async function getTotalKeepersBalance(contract) {
   const keeperAddresses = await getActiveKeeperAddresses(contract)
-  const keepers = await getActiveKeepers(keeperAddresses)
+  const keepers = await getActiveKeepers(contract, keeperAddresses)
   return bigSum(keepers, keeper => keeper.balance)
 }
 

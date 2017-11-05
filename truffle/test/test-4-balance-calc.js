@@ -35,6 +35,8 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
   const keepingFee = 100
   const finalReward = 1000
 
+  let contract
+
 
   before(async () => {
     contract = await CryptoLegacy.new(
@@ -157,7 +159,9 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
 
     // getting current Keeper balances and calculating expected Keeper balances after check-in
 
-    const preCheckInKeeperBalances = await getActiveKeepersBalances(addr.keeper[1], addr.keeper[2])
+    const preCheckInKeeperBalances = await getActiveKeepersBalances(contract,
+      [addr.keeper[1], addr.keeper[2]])
+
     const preCheckInKeepersTotalBalance = bigSum(preCheckInKeeperBalances)
 
     const checkInIntervalFraction = 1/4
@@ -191,7 +195,9 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
     const [postCheckInWalletBalanceAlice, postCheckInBalanceContract] =
       await getAccountBalances(addr.Alice, contract.address)
 
-    const postCheckInKeeperBalances = await getActiveKeepersBalances(addr.keeper[1], addr.keeper[2])
+    const postCheckInKeeperBalances = await getActiveKeepersBalances(contract,
+      [addr.keeper[1], addr.keeper[2]])
+
     const postCheckInKeepersTotalBalance = bigSum(postCheckInKeeperBalances)
 
     // checking balance differences
@@ -217,7 +223,9 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
 
   it(`when a Keeper checks in, contract sends him his current balance`, async () => {
 
-    const preCheckInKeeperBalances = await getActiveKeepersBalances(addr.keeper[1], addr.keeper[2])
+    const preCheckInKeeperBalances = await getActiveKeepersBalances(contract,
+      [addr.keeper[1], addr.keeper[2]])
+
     const preCheckInKeeperWalletBalances = await getAccountBalances(addr.keeper[1], addr.keeper[2])
     const preCheckInContractBalance = await getAccountBalance(contract.address)
 
@@ -226,7 +234,9 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
       `first Keeper check-in`
     )
 
-    const postCheckInKeeperBalances = await getActiveKeepersBalances(addr.keeper[1], addr.keeper[2])
+    const postCheckInKeeperBalances = await getActiveKeepersBalances(contract,
+      [addr.keeper[1], addr.keeper[2]])
+
     const postCheckInKeeperWalletBalances = await getAccountBalances(addr.keeper[1], addr.keeper[2])
     const postCheckInContractBalance = await getAccountBalance(contract.address)
 
@@ -270,7 +280,8 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
 
     // obtaining pre-cancel balances
 
-    const preCancelKeeperBalances = await getActiveKeepersBalances(addr.keeper[1], addr.keeper[2])
+    const preCancelKeeperBalances = await getActiveKeepersBalances(contract,
+      [addr.keeper[1], addr.keeper[2]])
 
     const expectedPostCancelKeeperBalances = preCancelKeeperBalances.map(
       (bal, i) => bal.add(expectedKeeperBalanceIncreases[i])
@@ -296,7 +307,8 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
 
     // obtaining post-cancel balances
 
-    const postCancelKeeperBalances = await getActiveKeepersBalances(addr.keeper[1], addr.keeper[2])
+    const postCancelKeeperBalances = await getActiveKeepersBalances(contract,
+      [addr.keeper[1], addr.keeper[2]])
 
     const [postCancelWalletBalanceAlice, postCancelBalanceContract] =
       await getAccountBalances(addr.Alice, contract.address)
@@ -322,7 +334,9 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
 
 
   it(`Keeper can withdraw his balance after cancellation`, async () => {
-    const preCheckInKeeperBalances = await getActiveKeepersBalances(addr.keeper[1], addr.keeper[2])
+    const preCheckInKeeperBalances = await getActiveKeepersBalances(contract,
+      [addr.keeper[1], addr.keeper[2]])
+
     const preCheckInKeeperWalletBalances = await getAccountBalances(addr.keeper[1], addr.keeper[2])
     const preCheckInContractBalance = await getAccountBalance(contract.address)
 
@@ -331,7 +345,9 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
       `Keeper check-in`
     )
 
-    const postCheckInKeeperBalances = await getActiveKeepersBalances(addr.keeper[1], addr.keeper[2])
+    const postCheckInKeeperBalances = await getActiveKeepersBalances(contract,
+      [addr.keeper[1], addr.keeper[2]])
+
     const postCheckInKeeperWalletBalances = await getAccountBalances(addr.keeper[1], addr.keeper[2])
     const postCheckInContractBalance = await getAccountBalance(contract.address)
 

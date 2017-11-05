@@ -50,7 +50,7 @@ async function getActiveKeeperAddresses(contract) {
 }
 
 
-async function getActiveKeepers(keeperAddresses) {
+async function getActiveKeepers(contract, keeperAddresses) {
   const rawStructs = await Promise.all(keeperAddresses.map(addr => contract.activeKeepers(addr)))
   return rawStructs.map(assembleKeeperStruct)
 }
