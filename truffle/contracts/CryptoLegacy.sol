@@ -306,7 +306,7 @@ contract CryptoLegacy {
 
     // We don't require paying one keeping period upfront as the contract is being cancelled;
     // we just require paying till the present moment.
-    uint excessBalance = creditKeepers({prepayOneKeepingPeriodUpfront: true});
+    uint excessBalance = creditKeepers({prepayOneKeepingPeriodUpfront: false});
 
     if (excessBalance > 0) {
       msg.sender.transfer(excessBalance);
