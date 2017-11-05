@@ -67,6 +67,9 @@ contract CryptoLegacy {
   mapping(address => ActiveKeeper) public activeKeepers;
   address[] public activeKeepersAddresses;
 
+  // Sum of keeping fees of all active Keepers.
+  uint totalKeepingFee;
+
   // We need this because current version of Solidity doesn't support non-integer numbers.
   // We set it to be equal to number of wei in eth to make sure we transfer keeping fee with
   // enough precision.
@@ -149,16 +152,18 @@ contract CryptoLegacy {
       suppliedKeyParts: new bytes[](0)
     });
 
-    uint256 requiredBalance = writeKeepers(selectedProposalIndices, keyPartHashes);
+    totalKeepingFee = writeKeepers(selectedProposalIndices, keyPartHashes);
 
     uint balance = this.balance;
-    require(balance >= requiredBalance);
+    require(balance >= totalKeepingFee);
 
     state = States.Active;
     lastOwnerCheckInAt = getBlockTimestamp();
   }
 
 
+  // Returns: sum of keeping fees of all selected Keepers.
+  //
   function writeKeepers(
     uint[] selectedProposalIndices,
     bytes32[] keyPartHashes
@@ -166,7 +171,7 @@ contract CryptoLegacy {
   internal returns (uint)
   {
     uint timestamp = getBlockTimestamp();
-    uint requiredBalance = 0;
+    uint totalKeepingFee = 0;
 
     for (uint i = 0; i < selectedProposalIndices.length; i++) {
       uint proposalIndex = selectedProposalIndices[i];
@@ -182,10 +187,10 @@ contract CryptoLegacy {
       });
 
       activeKeepersAddresses.push(proposal.keeperAddress);
-      // TODO: update requiredBalance
+      totalKeepingFee = SafeMath.add(totalKeepingFee, proposal.keepingFee);
     }
 
-    return requiredBalance;
+    return totalKeepingFee;
   }
 
 
@@ -195,7 +200,7 @@ contract CryptoLegacy {
     ownerOnly()
     atState(States.Active)
   {
-    uint excessBalance = creditKeepers();
+    uint excessBalance = creditKeepers({prepayOneKeepingPeriodUpfront: true});
 
     lastOwnerCheckInAt = getBlockTimestamp();
 
@@ -207,26 +212,30 @@ contract CryptoLegacy {
 
   // Returns: excess balance that can be transferred back to owner.
   //
-  function creditKeepers() internal returns (uint) {
+  function creditKeepers(bool prepayOneKeepingPeriodUpfront) internal returns (uint) {
     uint timestamp = getBlockTimestamp();
 
     uint timeSinceLastOwnerCheckIn = SafeMath.sub(timestamp, lastOwnerCheckInAt);
     require(timeSinceLastOwnerCheckIn <= checkInInterval);
 
     uint keepingFeeMult = SafeMath.mul(KEEPING_FEE_ROUNDING_MULT, timeSinceLastOwnerCheckIn) / checkInInterval;
-    uint keepersBalance = 0;
+    uint requiredBalance = 0;
 
     for (uint i = 0; i < activeKeepersAddresses.length; i++) {
       ActiveKeeper storage keeper = activeKeepers[activeKeepersAddresses[i]];
       uint balanceToAdd = SafeMath.mul(keeper.keepingFee, keepingFeeMult) / KEEPING_FEE_ROUNDING_MULT;
       keeper.balance = SafeMath.add(keeper.balance, balanceToAdd);
-      keepersBalance = SafeMath.add(keepersBalance, keeper.balance);
+      requiredBalance = SafeMath.add(requiredBalance, keeper.balance);
+    }
+
+    if (prepayOneKeepingPeriodUpfront) {
+      requiredBalance = SafeMath.add(requiredBalance, totalKeepingFee);
     }
 
     uint balance = this.balance;
 
-    require(balance >= keepersBalance);
-    return balance - keepersBalance;
+    require(balance >= requiredBalance);
+    return balance - requiredBalance;
   }
 
 
@@ -295,7 +304,9 @@ contract CryptoLegacy {
   {
     state = States.Cancelled;
 
-    uint excessBalance = creditKeepers();
+    // We don't require paying one keeping period upfront as the contract is being cancelled;
+    // we just require paying till the present moment.
+    uint excessBalance = creditKeepers({prepayOneKeepingPeriodUpfront: true});
 
     if (excessBalance > 0) {
       msg.sender.transfer(excessBalance);
