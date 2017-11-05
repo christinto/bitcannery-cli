@@ -16,9 +16,10 @@ function assembleKeeperStruct(rawStruct) {
   return {
     publicKey: rawStruct[0],
     keyPartHash: rawStruct[1],
-    lastCheckInAt: rawStruct[2].toNumber(),
+    keepingFee: rawStruct[2],
     balance: new BigNumber('' + rawStruct[3]),
-    keyPartSupplied: rawStruct[4],
+    lastCheckInAt: rawStruct[4].toNumber(),
+    keyPartSupplied: rawStruct[5],
   }
 }
 
@@ -27,6 +28,7 @@ function assembleProposalStruct(rawStruct) {
   return {
     keeperAddress: rawStruct[0],
     publicKey: rawStruct[1],
+    keepingFee: rawStruct[2],
   }
 }
 
