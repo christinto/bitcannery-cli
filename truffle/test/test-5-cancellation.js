@@ -5,7 +5,37 @@ const {web3, assertTxSucceeds, assertTxFails, sum} = require('./helpers')
 const {States} = require('../utils/contract-api')
 
 
-contract('CryptoLegacy, cancellation:', function(accounts) {
+contract('CryptoLegacy, cancellation:', (accounts) => {
+
+  function getAddresses() {
+    const [Alice, Bob, ...keeper] = accounts
+    return {Alice, Bob, keeper}
+  }
+
+  const addr = getAddresses()
+  const checkInIntervalSec = 2 * 60 * 60 // 2 hours
+  let contract
+
+  before(async () => {
+    contract = await CryptoLegacy.new(checkInIntervalSec, {from: addr.Alice})
+  })
+
+  it(`allows to submit a keeping proposal`, async () => {
+    await assertTxSucceeds(contract.submitKeeperProposal('0xabcdef', 100, {from: addr.keeper[0]}))
+  })
+
+  it(`allows owner to cancel the contract while waiting for keeping proposals`, async () => {
+    await assertTxSucceeds(contract.cancel({from: addr.Alice, value: 0}))
+  })
+
+  it(`cancelling a contract transfers it to Cancelled state`, async () => {
+    const state = await contract.state()
+    assert.equal(state.toNumber(), States.Cancelled)
+  })
+})
+
+
+contract('CryptoLegacy, cancellation:', (accounts) => {
 
   function getAddresses() {
     const [Alice, Bob, ...keeper] = accounts
@@ -30,10 +60,6 @@ contract('CryptoLegacy, cancellation:', function(accounts) {
 
   it(`keepers couldn't cancel contract`, async () => {
     await assertTxFails(contract.cancel({from: addr.keeper[0]}))
-  })
-
-  it(`owner couldn't cancel contract while calling for keepers`, async () => {
-    await assertTxFails(contract.cancel({from: addr.Alice}))
   })
 
   it(`owner could accept keepers`, async () => {

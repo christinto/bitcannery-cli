@@ -25,6 +25,11 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     _;
   }
 
+  modifier atEitherOfStates(States state1, States state2) {
+    require(state == state1 || state == state2);
+    _;
+  }
+
   modifier ownerOnly() {
     require(msg.sender == owner);
     _;
@@ -342,14 +347,17 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
   //
   function cancel() payable external
     ownerOnly()
-    atState(States.Active)
+    atEitherOfStates(States.CallForKeepers, States.Active)
   {
+    uint excessBalance = 0;
+
+    if (state == States.Active) {
+      // We don't require paying one keeping period upfront as the contract is being cancelled;
+      // we just require paying till the present moment.
+      excessBalance = creditKeepers({prepayOneKeepingPeriodUpfront: false});
+    }
+
     state = States.Cancelled;
-
-    // We don't require paying one keeping period upfront as the contract is being cancelled;
-    // we just require paying till the present moment.
-    uint excessBalance = creditKeepers({prepayOneKeepingPeriodUpfront: false});
-
     Cancelled();
 
     if (excessBalance > 0) {
