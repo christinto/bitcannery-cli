@@ -99,7 +99,6 @@ contract('CryptoLegacy, cancellation:', (accounts) => {
   })
 
   it(`owner could cancel contract in active state`, async () => {
-    // we didn't increase time since contract activation, so Alice isn't required to pay anything
     await assertTxSucceeds(contract.cancel({from: addr.Alice}))
     const state = await contract.state()
     assert.equal(state.toNumber(), States.Cancelled)
