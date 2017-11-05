@@ -14,9 +14,7 @@ contract CryptoLegacyDebug is CryptoLegacy {
     return debugTimestamp;
   }
 
-  function CryptoLegacyDebug(uint _checkInInterval, uint _keepingFee, uint _finalReward)
-           CryptoLegacy(_checkInInterval, _keepingFee, _finalReward)
-  public {
+  function CryptoLegacyDebug(uint _checkInInterval) CryptoLegacy(_checkInInterval) public {
     // nop
   }
 
