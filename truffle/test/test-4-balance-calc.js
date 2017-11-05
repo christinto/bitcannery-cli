@@ -10,6 +10,7 @@ const {web3,
   getAccountBalances,
   getActiveKeepersBalances,
   stringify,
+  sum,
   bigSum} = require('./helpers')
 
 //
@@ -24,38 +25,38 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
   }
 
   const addr = getAddresses()
-
+  const keepingFees = [100, 150, 200]
   const keeperPubKeys = ['0xaabbcc', '0xbbccdd', '0xccddee']
 
   const selectedKeeperIndices = [1, 2]
   const selectedKeyParts = ['0x1234567890', '0xfffeeefffe']
   const selectedKeyPartHashes = selectedKeyParts.map(part => web3.utils.soliditySha3(part))
 
+  const onePeriodTotalKeepingFee = selectedKeeperIndices.reduce(
+    (acc, keeperIndex) => acc + keepingFees[keeperIndex],
+  0)
+
   const checkInIntervalSec = 2 * 60 * 60 // 2 hours
-  const keepingFee = 100
-  const finalReward = 1000
 
   let contract
 
 
   before(async () => {
-    contract = await CryptoLegacy.new(
-      checkInIntervalSec,
-      keepingFee,
-      finalReward,
-      {from: addr.Alice}
-    )
+    contract = await CryptoLegacy.new(checkInIntervalSec, {from: addr.Alice})
 
-    await assertTxSucceeds(contract.submitKeeperProposal(keeperPubKeys[0], {from: addr.keeper[0]}))
-    await assertTxSucceeds(contract.submitKeeperProposal(keeperPubKeys[1], {from: addr.keeper[1]}))
-    await assertTxSucceeds(contract.submitKeeperProposal(keeperPubKeys[2], {from: addr.keeper[2]}))
+    await assertTxSucceeds(contract.submitKeeperProposal(
+      keeperPubKeys[0], keepingFees[0], {from: addr.keeper[0]}))
+
+    await assertTxSucceeds(contract.submitKeeperProposal(
+      keeperPubKeys[1], keepingFees[1], {from: addr.keeper[1]}))
+
+    await assertTxSucceeds(contract.submitKeeperProposal(
+      keeperPubKeys[2], keepingFees[2], {from: addr.keeper[2]}))
   })
 
 
   it(`when accepting Keepers, requires Alice to provide funds enough to pay ` +
-     `final rewards to all selected Keepers`, async () => {
-
-    const totalFinalReward = selectedKeeperIndices.length * finalReward
+     `one keeping period to all selected Keepers`, async () => {
 
     const acceptKeepersArgs = [
       selectedKeeperIndices, // selectedProposalIndices
@@ -68,12 +69,12 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
 
     await assertTxFails(contract.acceptKeepers(
       ...acceptKeepersArgs,
-      {from: addr.Alice, value: totalFinalReward - 1}
+      {from: addr.Alice, value: onePeriodTotalKeepingFee - 1}
     ))
 
     await assertTxSucceeds(contract.acceptKeepers(
       ...acceptKeepersArgs,
-      {from: addr.Alice, value: totalFinalReward}
+      {from: addr.Alice, value: onePeriodTotalKeepingFee}
     ))
 
     const numKeepers = await contract.getNumKeepers()
@@ -91,7 +92,8 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
 
 
   it(`when Alice checks in, credits all Keepers with keepeing fee and requires Alice to provide ` +
-     `enough funds to pay all Keepers their current balances and final rewards`, async () => {
+     `enough funds to pay all Keepers their current balances and keeping fee for the next ` +
+     `check-in interval`, async () => {
 
     const checkInIntervalFraction = 1/2
     const timePassedSinceContractActive = Math.floor(checkInIntervalSec * checkInIntervalFraction)
@@ -100,11 +102,18 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
       `increasing time`)
 
     const expectedKeepersBalance = [
-      Math.floor(keepingFee * checkInIntervalFraction),
-      Math.floor(keepingFee * checkInIntervalFraction),
+      Math.floor(keepingFees[1] * checkInIntervalFraction),
+      Math.floor(keepingFees[2] * checkInIntervalFraction),
     ]
 
-    const expectedKeepersTotalBalance = expectedKeepersBalance.reduce((s, i) => s + i, 0)
+    const expectedKeepersTotalBalance = sum(expectedKeepersBalance)
+    const requiredBalanceContract = expectedKeepersTotalBalance + onePeriodTotalKeepingFee
+    const preCheckInBalanceContract = await getAccountBalance(contract.address)
+    const requiredContractBalanceIncrease = requiredBalanceContract - preCheckInBalanceContract
+
+    // this is a pre-condition for this test, not contract logic check
+    assert(requiredContractBalanceIncrease > 0,
+      `expected required contract balance increase to be positive`)
 
     // doesn't Allow Alice to check in if she provdes less funds than expected
 
@@ -113,16 +122,15 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
       `supplying zero funds`)
 
     await assertTxFails(
-      contract.ownerCheckIn({from: addr.Alice, value: expectedKeepersTotalBalance - 1}),
+      contract.ownerCheckIn({from: addr.Alice, value: requiredContractBalanceIncrease - 1}),
       `not supplying enough funds`)
 
     // Allows Alice to check in if she provides enough funds
 
-    const [preCheckInWalletBalanceAlice, preCheckInBalanceContract] =
-      await getAccountBalances(addr.Alice, contract.address)
+    const preCheckInWalletBalanceAlice = await getAccountBalance(addr.Alice)
 
     const {txPriceWei} = await assertTxSucceeds(
-      contract.ownerCheckIn({from: addr.Alice, value: expectedKeepersTotalBalance}),
+      contract.ownerCheckIn({from: addr.Alice, value: requiredContractBalanceIncrease}),
       `supplying enough funds`)
 
     const [postCheckInWalletBalanceAlice, postCheckInBalanceContract] =
@@ -139,7 +147,7 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
     // check how much is taken from Alice's wallet
 
     const expectedPostCheckInWalletBalanceAlice =
-      preCheckInWalletBalanceAlice.minus(expectedKeepersTotalBalance).minus(txPriceWei)
+      preCheckInWalletBalanceAlice.minus(requiredContractBalanceIncrease).minus(txPriceWei)
 
     assert.bignumEqual(postCheckInWalletBalanceAlice, expectedPostCheckInWalletBalanceAlice,
       `expected amount is taken from Alice's wallet`)
@@ -147,7 +155,7 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
     // check how much is sent to contract's address
 
     const expectedPostCheckInBalanceContract =
-      preCheckInBalanceContract.plus(expectedKeepersTotalBalance)
+      preCheckInBalanceContract.plus(requiredContractBalanceIncrease)
 
     assert.bignumEqual(postCheckInBalanceContract, expectedPostCheckInBalanceContract,
       `expected amount is sent to contract's address`)
@@ -167,8 +175,10 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
     const checkInIntervalFraction = 1/4
     const timePassedSinceLastCheckIn = Math.floor(checkInIntervalSec * checkInIntervalFraction)
 
-    const expectedPostCheckInKeeperBalances = preCheckInKeeperBalances.map(
-      bal => bal.plus(Math.floor(keepingFee * checkInIntervalFraction)))
+    const expectedPostCheckInKeeperBalances = [
+      preCheckInKeeperBalances[0].plus(Math.floor(keepingFees[1] * checkInIntervalFraction)),
+      preCheckInKeeperBalances[1].plus(Math.floor(keepingFees[2] * checkInIntervalFraction)),
+    ]
 
     const expectedPostCheckInKeepersTotalBalance = bigSum(expectedPostCheckInKeeperBalances)
 
@@ -274,8 +284,8 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
     const timePassedSinceLastCheckIn = Math.floor(checkInIntervalSec * checkInIntervalFraction)
 
     const expectedKeeperBalanceIncreases = [
-      Math.floor(checkInIntervalFraction * keepingFee),
-      Math.floor(checkInIntervalFraction * keepingFee),
+      Math.floor(checkInIntervalFraction * keepingFees[1]),
+      Math.floor(checkInIntervalFraction * keepingFees[2]),
     ]
 
     // obtaining pre-cancel balances

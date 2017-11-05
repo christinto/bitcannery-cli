@@ -9,37 +9,48 @@ const {keeperPublicKeys} = require('./data')
 contract('CryptoLegacy, activation:', (accounts) => {
 
   function getAddresses() {
-    const [_, Alice, Bob, keeper_1, keeper_2, keeper_3, keeper_4, keeper_5, keeper_6] = accounts
-    return {Alice, Bob, keeper_1, keeper_2, keeper_3, keeper_4, keeper_5, keeper_6}
+    const [_, Alice, Bob, keeper_1, keeper_2, keeper_3] = accounts
+    return {Alice, Bob, keeper_1, keeper_2, keeper_3}
   }
 
   const addr = getAddresses()
 
+  const keepingFees = {
+    keeper_1: 100,
+    keeper_2: 150,
+    keeper_3: 200,
+  }
+
   const checkInIntervalSec = 2 * 60 * 60 // 2 hours
-  const keepingFee = 100
-  const finalReward = 1000000000000000000
 
   let contract
 
   before(async () => {
-    contract = await CryptoLegacy.new(
-      checkInIntervalSec,
-      keepingFee,
-      finalReward,
-      {from: addr.Alice}
-    )
+    contract = await CryptoLegacy.new(checkInIntervalSec, {from: addr.Alice})
   })
 
   it(`allows first Keeper to submit a proposal`, async () => {
-    await assertTxSucceeds(contract.submitKeeperProposal(keeperPublicKeys[0], {from: addr.keeper_1}))
+    await assertTxSucceeds(contract.submitKeeperProposal(
+      keeperPublicKeys[0],
+      keepingFees.keeper_1,
+      {from: addr.keeper_1})
+    )
   })
 
   it(`allows second Keeper to submit a proposal`, async () => {
-    await assertTxSucceeds(contract.submitKeeperProposal(keeperPublicKeys[1], {from: addr.keeper_2}))
+    await assertTxSucceeds(contract.submitKeeperProposal(
+      keeperPublicKeys[1],
+      keepingFees.keeper_2,
+      {from: addr.keeper_2})
+    )
   })
 
   it(`allows third Keeper to submit a proposal`, async () => {
-    await assertTxSucceeds(contract.submitKeeperProposal(keeperPublicKeys[2], {from: addr.keeper_3}))
+    await assertTxSucceeds(contract.submitKeeperProposal(
+      keeperPublicKeys[2],
+      keepingFees.keeper_3,
+      {from: addr.keeper_3})
+    )
   })
 
   const acceptKeepersParams = [
@@ -52,14 +63,16 @@ contract('CryptoLegacy, activation:', (accounts) => {
     42, // counter value for AES CTR mode
   ]
 
+  const acceptKeepersValue = keepingFees.keeper_1 + keepingFees.keeper_3
+
   it(`doesn't allow Keepers to accept themselves`, async () => {
     await assertTxFails(contract.acceptKeepers(...acceptKeepersParams,
-      {from: addr.keeper_1, value: 2 * finalReward}))
+      {from: addr.keeper_1, value: acceptKeepersValue}))
   })
 
   it(`doesn't allow Keepers to accept other Keepers`, async () => {
     await assertTxFails(contract.acceptKeepers(...acceptKeepersParams,
-      {from: addr.keeper_2, value: 2 * finalReward}))
+      {from: addr.keeper_2, value: acceptKeepersValue}))
   })
 
   it(`doesn't allow owner to accept non-proposed Keepers`, async () => {
@@ -69,7 +82,7 @@ contract('CryptoLegacy, activation:', (accounts) => {
       [acceptedIndices[0], 10],
       [hash_1, hash_2],
       ...other,
-      {from: addr.Alice, value: 2 * finalReward}
+      {from: addr.Alice, value: acceptKeepersValue}
     ))
   })
 
@@ -77,7 +90,7 @@ contract('CryptoLegacy, activation:', (accounts) => {
     const [_ , [hash_1, hash_2]] = acceptKeepersParams
 
     await assertTxSucceeds(contract.acceptKeepers(...acceptKeepersParams,
-      {from: addr.Alice, value: 2 * finalReward}
+      {from: addr.Alice, value: acceptKeepersValue}
     ))
 
     const numKeepers = await contract.getNumKeepers()
@@ -99,7 +112,7 @@ contract('CryptoLegacy, activation:', (accounts) => {
 
   it(`doesn't allow owner to activate already activated contract`, async () => {
     await assertTxFails(contract.acceptKeepers(...acceptKeepersParams,
-      {from: addr.Alice, value: 2 * finalReward}
+      {from: addr.Alice, value: acceptKeepersValue}
     ))
   })
 
