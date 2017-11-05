@@ -171,7 +171,7 @@ contract CryptoLegacy {
   internal returns (uint)
   {
     uint timestamp = getBlockTimestamp();
-    uint totalKeepingFee = 0;
+    uint _totalKeepingFee = 0;
 
     for (uint i = 0; i < selectedProposalIndices.length; i++) {
       uint proposalIndex = selectedProposalIndices[i];
@@ -187,10 +187,10 @@ contract CryptoLegacy {
       });
 
       activeKeepersAddresses.push(proposal.keeperAddress);
-      totalKeepingFee = SafeMath.add(totalKeepingFee, proposal.keepingFee);
+      _totalKeepingFee = SafeMath.add(_totalKeepingFee, proposal.keepingFee);
     }
 
-    return totalKeepingFee;
+    return _totalKeepingFee;
   }
 
 
