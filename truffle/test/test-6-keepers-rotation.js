@@ -163,4 +163,9 @@ contract('CryptoLegacy, rotating Keepers:', (accounts) => {
     ))
   })
 
+  it(`allows owner to cancel a contract with announced continuation contract`, async () => {
+    await assertTxSucceeds(contract.cancel({from: addr.Alice}))
+    assert.equal(await contract.state(), States.Cancelled)
+  })
+
 })
