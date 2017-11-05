@@ -32,14 +32,12 @@ contract CryptoLegacy {
     address keeperAddress;
     bytes publicKey; // 64-byte
     uint keepingFee;
-    uint finalReward;
   }
 
   struct ActiveKeeper {
     bytes publicKey; // 64-byte
     bytes32 keyPartHash; // sha-3 hash
     uint keepingFee;
-    uint finalReward;
     uint balance;
     uint lastCheckInAt;
     bool keyPartSupplied;
@@ -68,9 +66,6 @@ contract CryptoLegacy {
 
   mapping(address => ActiveKeeper) public activeKeepers;
   address[] public activeKeepersAddresses;
-
-  // How much in total we need to pay to active Keepers when they all supply their keys.
-  uint internal totalFinalReward;
 
   // We need this because current version of Solidity doesn't support non-integer numbers.
   // We set it to be equal to number of wei in eth to make sure we transfer keeping fee with
@@ -112,7 +107,7 @@ contract CryptoLegacy {
 
   // Called by a Keeper to submit their proposal.
   //
-  function submitKeeperProposal(bytes publicKey, uint keepingFee, uint finalReward) external
+  function submitKeeperProposal(bytes publicKey, uint keepingFee) external
     atState(States.CallForKeepers)
   {
     require(msg.sender != owner);
@@ -125,8 +120,7 @@ contract CryptoLegacy {
     keeperProposals.push(KeeperProposal({
       keeperAddress: msg.sender,
       publicKey: publicKey,
-      keepingFee: keepingFee,
-      finalReward: finalReward
+      keepingFee: keepingFee
     }));
 
     proposedKeeperFlags[msg.sender] = true;
@@ -155,10 +149,10 @@ contract CryptoLegacy {
       suppliedKeyParts: new bytes[](0)
     });
 
-    totalFinalReward = writeKeepers(selectedProposalIndices, keyPartHashes);
+    uint256 requiredBalance = writeKeepers(selectedProposalIndices, keyPartHashes);
 
     uint balance = this.balance;
-    require(balance >= totalFinalReward);
+    require(balance >= requiredBalance);
 
     state = States.Active;
     lastOwnerCheckInAt = getBlockTimestamp();
@@ -172,7 +166,7 @@ contract CryptoLegacy {
   internal returns (uint)
   {
     uint timestamp = getBlockTimestamp();
-    uint _totalFinalReward = 0;
+    uint requiredBalance = 0;
 
     for (uint i = 0; i < selectedProposalIndices.length; i++) {
       uint proposalIndex = selectedProposalIndices[i];
@@ -182,17 +176,16 @@ contract CryptoLegacy {
         publicKey: proposal.publicKey,
         keyPartHash: keyPartHashes[i],
         keepingFee: proposal.keepingFee,
-        finalReward: proposal.finalReward,
         lastCheckInAt: timestamp,
         balance: 0,
         keyPartSupplied: false
       });
 
       activeKeepersAddresses.push(proposal.keeperAddress);
-      _totalFinalReward = SafeMath.add(_totalFinalReward, proposal.finalReward);
+      // TODO: update requiredBalance
     }
 
-    return _totalFinalReward;
+    return requiredBalance;
   }
 
 
@@ -202,7 +195,7 @@ contract CryptoLegacy {
     ownerOnly()
     atState(States.Active)
   {
-    uint excessBalance = creditKeepers({requiredFinalReward: totalFinalReward});
+    uint excessBalance = creditKeepers();
 
     lastOwnerCheckInAt = getBlockTimestamp();
 
@@ -214,7 +207,7 @@ contract CryptoLegacy {
 
   // Returns: excess balance that can be transferred back to owner.
   //
-  function creditKeepers(uint requiredFinalReward) internal returns (uint) {
+  function creditKeepers() internal returns (uint) {
     uint timestamp = getBlockTimestamp();
 
     uint timeSinceLastOwnerCheckIn = SafeMath.sub(timestamp, lastOwnerCheckInAt);
@@ -230,11 +223,10 @@ contract CryptoLegacy {
       keepersBalance = SafeMath.add(keepersBalance, keeper.balance);
     }
 
-    uint requiredBalance = SafeMath.add(keepersBalance, requiredFinalReward);
     uint balance = this.balance;
 
-    require(balance >= requiredBalance);
-    return balance - requiredBalance;
+    require(balance >= keepersBalance);
+    return balance - keepersBalance;
   }
 
 
@@ -282,10 +274,12 @@ contract CryptoLegacy {
     encryptedData.suppliedKeyParts.push(keyPart);
     keeper.keyPartSupplied = true;
 
-    uint toBeTransferred = keeper.balance + keeper.finalReward;
+    uint toBeTransferred = keeper.balance;
     keeper.balance = 0;
 
-    msg.sender.transfer(toBeTransferred);
+    if (toBeTransferred > 0) {
+      msg.sender.transfer(toBeTransferred);
+    }
   }
 
 
@@ -301,8 +295,7 @@ contract CryptoLegacy {
   {
     state = States.Cancelled;
 
-    // Since we're cancelling the contract, we don't need to pay final reward anymore.
-    uint excessBalance = creditKeepers({requiredFinalReward: 0});
+    uint excessBalance = creditKeepers();
 
     if (excessBalance > 0) {
       msg.sender.transfer(excessBalance);
