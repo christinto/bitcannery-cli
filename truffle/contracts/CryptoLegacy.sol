@@ -2,9 +2,16 @@ pragma solidity ^0.4.15;
 
 import "./SafeMath.sol";
 
-contract CryptoLegacy {
+interface CryptoLegacyBaseAPI {
+  function getVersion() external view returns (uint);
+  function isAcceptingKeeperProposals() external view returns (bool);
+}
+
+contract CryptoLegacy is CryptoLegacyBaseAPI {
 
   event KeysNeeded();
+  event ContinuationContractAnnounced(address continuationContractAddress);
+  event Cancelled();
 
   enum States {
     CallForKeepers,
@@ -51,9 +58,16 @@ contract CryptoLegacy {
     bytes[] suppliedKeyParts;
   }
 
-  address public owner = msg.sender;
-  uint public checkInInterval;
+  // Version of the contract API.
+  uint public VERSION = 1;
 
+  address public owner = msg.sender;
+
+  // When owner wants to elect new Keepers, she cancels the contract and starts a new one.
+  // This variable contains the address of the new continuation contract.
+  address public continuationContractAddress = 0;
+
+  uint public checkInInterval;
   uint public lastOwnerCheckInAt;
 
   States public state = States.CallForKeepers;
@@ -85,6 +99,16 @@ contract CryptoLegacy {
   function CryptoLegacy(uint _checkInInterval) public {
     require(_checkInInterval >= MINIMUM_CHECK_IN_INTERVAL);
     checkInInterval = _checkInInterval;
+  }
+
+
+  function getVersion() external view returns (uint) {
+    return VERSION;
+  }
+
+
+  function isAcceptingKeeperProposals() external view returns (bool) {
+    return state == States.CallForKeepers;
   }
 
 
@@ -292,11 +316,29 @@ contract CryptoLegacy {
   }
 
 
+  // Allows owner to announce continuation contract to all active Keepers.
+  //
+  // Continuation contract is used to elect new set of Keepers, e.g. to replace inactive ones.
+  // When the continuation contract gets sufficient number of keeping proposals, owner will
+  // cancel this contract and start the continuation one.
+  //
+  function announceContinuationContract(address _continuationContractAddress) external
+    ownerOnly()
+    atState(States.Active)
+  {
+    require(continuationContractAddress == 0);
+
+    CryptoLegacyBaseAPI continuationContract = CryptoLegacyBaseAPI(_continuationContractAddress);
+    require(continuationContract.getVersion() >= VERSION);
+    require(continuationContract.isAcceptingKeeperProposals());
+
+    continuationContractAddress = _continuationContractAddress;
+    ContinuationContractAnnounced(_continuationContractAddress);
+  }
+
+
   // Cancels the contract and notifies the Keepers. Credits all active Keepers with keeping fee,
   // as if this was a check-in.
-  //
-  // Pass continuationContractAddress to notify the Keepers that a new contract was started
-  // instead of this one to elect new Keepers.
   //
   function cancel() payable external
     ownerOnly()
@@ -307,6 +349,8 @@ contract CryptoLegacy {
     // We don't require paying one keeping period upfront as the contract is being cancelled;
     // we just require paying till the present moment.
     uint excessBalance = creditKeepers({prepayOneKeepingPeriodUpfront: false});
+
+    Cancelled();
 
     if (excessBalance > 0) {
       msg.sender.transfer(excessBalance);
