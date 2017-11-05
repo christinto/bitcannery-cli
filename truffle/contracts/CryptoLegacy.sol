@@ -3,11 +3,14 @@ pragma solidity ^0.4.15;
 import "./SafeMath.sol";
 
 interface CryptoLegacyBaseAPI {
-  function getVersion() external view returns (uint);
-  function isAcceptingKeeperProposals() external view returns (bool);
+  function getVersion() public view returns (uint);
+  function isAcceptingKeeperProposals() public view returns (bool);
 }
 
 contract CryptoLegacy is CryptoLegacyBaseAPI {
+
+  // Version of the contract API.
+  uint public constant VERSION = 1;
 
   event KeysNeeded();
   event ContinuationContractAnnounced(address continuationContractAddress);
@@ -63,9 +66,6 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     bytes[] suppliedKeyParts;
   }
 
-  // Version of the contract API.
-  uint public VERSION = 1;
-
   address public owner = msg.sender;
 
   // When owner wants to elect new Keepers, she cancels the contract and starts a new one.
@@ -107,12 +107,12 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
   }
 
 
-  function getVersion() external view returns (uint) {
+  function getVersion() public view returns (uint) {
     return VERSION;
   }
 
 
-  function isAcceptingKeeperProposals() external view returns (bool) {
+  function isAcceptingKeeperProposals() public view returns (bool) {
     return state == States.CallForKeepers;
   }
 
@@ -334,7 +334,7 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     require(continuationContractAddress == 0);
 
     CryptoLegacyBaseAPI continuationContract = CryptoLegacyBaseAPI(_continuationContractAddress);
-    require(continuationContract.getVersion() >= VERSION);
+    require(continuationContract.getVersion() >= getVersion());
     require(continuationContract.isAcceptingKeeperProposals());
 
     continuationContractAddress = _continuationContractAddress;
