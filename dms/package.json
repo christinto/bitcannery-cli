@@ -1,0 +1,22 @@
+{
+  "name": "dms",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "precommit": "standard",
+    "fix": "standard --fix"
+  },
+  "author": "",
+  "dependencies": {
+    "babel-polyfill": "^6.26.0",
+    "babel-preset-latest": "^6.24.1",
+    "babel-register": "^6.26.0",
+    "yargs": "^10.0.3"
+  },
+  "devDependencies": {
+    "husky": "^0.14.3",
+    "standard": "^10.0.3"
+  }
+}
