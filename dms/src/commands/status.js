@@ -1,5 +1,7 @@
+import getWeb3 from '../utils/get-web3'
 import moment from 'moment'
 import getContractApi from '../utils/get-contract-api'
+const {stateToString} = require('../utils/contract-api')
 
 export const description = 'Display the status of given legacy contract'
 
@@ -16,14 +18,24 @@ export function yargsBuilder (yargs) {
 }
 
 export async function handler (argv) {
-  console.log('Contract address: ', argv.contract_id)
-
   const LegacyContract = await getContractApi()
   const instance = await LegacyContract.at(argv.contract_id)
 
   const owner = await instance.owner()
+  const state = await instance.state()
   const checkInIntervalInSec = (await instance.checkInInterval()).toNumber()
+  const numKeepers = (await instance.getNumKeepers()).toNumber()
+  const lastOwnerCheckInAt = (await instance.lastOwnerCheckInAt()).toNumber()
+  const totalKeepingFee = await instance.totalKeepingFee()
 
+  const totalKeepingFeeEth = getWeb3().fromWei(totalKeepingFee, 'ether')
+
+  console.log()
+  console.log('Contract address: ', argv.contract_id)
   console.log('Owner: account', owner)
+  console.log('Contract state:', stateToString(state.toNumber()))
+  console.log('Number of keepers:', numKeepers)
   console.log('Check in intreval:', moment().add(checkInIntervalInSec, 's').toNow(true))
+  console.log('Combined keepers fee:', totalKeepingFeeEth.toString(), 'ETH')
+  console.log('The next check-in:', moment(lastOwnerCheckInAt * 1000).add(checkInIntervalInSec, 's').fromNow())
 }

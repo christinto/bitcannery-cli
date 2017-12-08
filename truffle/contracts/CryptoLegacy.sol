@@ -88,7 +88,7 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
   address[] public activeKeepersAddresses;
 
   // Sum of keeping fees of all active Keepers.
-  uint totalKeepingFee;
+  uint public totalKeepingFee;
 
   // We need this because current version of Solidity doesn't support non-integer numbers.
   // We set it to be equal to number of wei in eth to make sure we transfer keeping fee with
