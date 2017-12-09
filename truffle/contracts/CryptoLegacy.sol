@@ -123,22 +123,22 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
   }
 
 
-  function getNumProposals() external constant returns (uint) {
+  function getNumProposals() external view returns (uint) {
     return keeperProposals.length;
   }
 
 
-  function getNumKeepers() external constant returns (uint) {
+  function getNumKeepers() external view returns (uint) {
     return activeKeepersAddresses.length;
   }
 
 
-  function getNumSuppliedKeyParts() external constant returns (uint) {
+  function getNumSuppliedKeyParts() external view returns (uint) {
     return encryptedData.suppliedKeyParts.length;
   }
 
 
-  function getSuppliedKeyPart(uint index) external constant returns (bytes) {
+  function getSuppliedKeyPart(uint index) external view returns (bytes) {
     return encryptedData.suppliedKeyParts[index];
   }
 
@@ -374,12 +374,13 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     }
   }
 
+
   // We can rely on the value of now (block.timestamp) for our purposes, as the consensus
   // rule is that a block's timestamp must be 1) more than the parent's block timestamp;
   // and 2) less than the current wall clock time. See:
   // https://github.com/ethereum/go-ethereum/blob/885c13c/consensus/ethash/consensus.go#L223
   //
-  function getBlockTimestamp() internal constant returns (uint) {
+  function getBlockTimestamp() internal view returns (uint) {
     return now;
   }
 

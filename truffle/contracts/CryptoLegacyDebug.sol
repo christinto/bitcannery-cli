@@ -16,7 +16,7 @@ contract CryptoLegacyDebug is CryptoLegacy {
     debugTimestamp += sec;
   }
 
-  function getBlockTimestamp() internal constant returns (uint) {
+  function getBlockTimestamp() internal view returns (uint) {
     return debugTimestamp;
   }
 
