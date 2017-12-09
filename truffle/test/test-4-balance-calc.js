@@ -13,9 +13,6 @@ const {web3,
   sum,
   bigSum} = require('./helpers')
 
-//
-// TODO: test final reward calculations and transfers
-//
 
 contract('CryptoLegacy, balance calculations:', (accounts) => {
 
@@ -115,7 +112,7 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
     assert(requiredContractBalanceIncrease > 0,
       `expected required contract balance increase to be positive`)
 
-    // doesn't Allow Alice to check in if she provdes less funds than expected
+    // doesn't allow Alice to check in if she provdes less funds than expected
 
     await assertTxFails(
       contract.ownerCheckIn({from: addr.Alice, value: 0}),

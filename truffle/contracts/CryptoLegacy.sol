@@ -318,7 +318,8 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     encryptedData.suppliedKeyParts.push(keyPart);
     keeper.keyPartSupplied = true;
 
-    uint toBeTransferred = keeper.balance;
+    // Include one-period keeping fee that was held by contract in advance.
+    uint toBeTransferred = SafeMath.add(keeper.balance, keeper.keepingFee);
     keeper.balance = 0;
 
     if (toBeTransferred > 0) {
