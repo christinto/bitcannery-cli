@@ -53,8 +53,8 @@ async function inspectTransaction(txResultPromise) {
   const {receipt} = txResult
   const success = receipt.status !== undefined
     ? receipt.status === '0x1' || receipt.status === 1 // Since Byzantium fork
-    : receipt.cumulativeGasUsed < tx.gas // Before Byzantium fork (current version of TestRPC)
-  const txPriceWei = new BigNumber(tx.gasPrice).times(receipt.cumulativeGasUsed)
+    : receipt.gasUsed < tx.gas // Before Byzantium fork (current version of TestRPC)
+  const txPriceWei = new BigNumber(tx.gasPrice).times(receipt.gasUsed)
   const events = txResult.logs
     .map(log => log.event ? {name: log.event, args: log.args} : null)
     .filter(x => !!x)
