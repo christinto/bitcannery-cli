@@ -87,6 +87,11 @@ async function getAccountBalances(...addrs) {
 }
 
 
+function ceil(x, y) {
+  return Math.ceil(x / y) * y;
+}
+
+
 function sum(arr, accessor = (x => x)) {
   return arr.reduce((s, el) => s + accessor(el), 0)
 }
@@ -102,7 +107,7 @@ function stringify(x) {
 }
 
 
-assert.bignumEqual = function assertBalancesEqual(bal1, bal2, message) {
+assert.bignumEqual = function assertBignumEqual(bal1, bal2, message) {
   assert.equal(bal1.toString(), bal2.toString(), message)
 }
 
@@ -164,6 +169,7 @@ module.exports = {
   printEvents,
   getAccountBalance,
   getAccountBalances,
+  ceil,
   sum,
   bigSum,
   stringify,

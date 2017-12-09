@@ -165,6 +165,20 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     proposedPublicKeyHashes[publicKeyHash] = true;
   }
 
+  // Calculates how much would it cost the owner to activate contract with given Keepers.
+  //
+  function calculateActivationPrice(uint[] selectedProposalIndices) public view returns (uint) {
+    uint _totalKeepingFee = 0;
+
+    for (uint i = 0; i < selectedProposalIndices.length; i++) {
+      uint proposalIndex = selectedProposalIndices[i];
+      KeeperProposal storage proposal = keeperProposals[proposalIndex];
+      _totalKeepingFee = SafeMath.add(_totalKeepingFee, proposal.keepingFee);
+    }
+
+    return _totalKeepingFee;
+  }
+
 
   // Called by owner to accept selected proposals and activate the contract.
   //
@@ -245,15 +259,35 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
   }
 
 
+  // Calculates approximate price of a check-in, given that it will be performed right now.
+  // Actual price may differ because
+  //
+  function calculateApproximateCheckInPrice() public view returns (uint) {
+    uint keepingFeeMult = calculateKeepingFeeMult();
+    uint requiredBalance = 0;
+
+    for (uint i = 0; i < activeKeepersAddresses.length; i++) {
+      ActiveKeeper storage keeper = activeKeepers[activeKeepersAddresses[i]];
+      uint balanceToAdd = SafeMath.mul(keeper.keepingFee, keepingFeeMult) / KEEPING_FEE_ROUNDING_MULT;
+      uint newKeeperBalance = SafeMath.add(keeper.balance, balanceToAdd);
+      requiredBalance = SafeMath.add(requiredBalance, newKeeperBalance);
+    }
+
+    requiredBalance = SafeMath.add(requiredBalance, totalKeepingFee);
+    uint balance = this.balance;
+
+    if (balance >= requiredBalance) {
+      return 0;
+    } else {
+      return requiredBalance - balance;
+    }
+  }
+
+
   // Returns: excess balance that can be transferred back to owner.
   //
   function creditKeepers(bool prepayOneKeepingPeriodUpfront) internal returns (uint) {
-    uint timestamp = getBlockTimestamp();
-
-    uint timeSinceLastOwnerCheckIn = SafeMath.sub(timestamp, lastOwnerCheckInAt);
-    require(timeSinceLastOwnerCheckIn <= checkInInterval);
-
-    uint keepingFeeMult = SafeMath.mul(KEEPING_FEE_ROUNDING_MULT, timeSinceLastOwnerCheckIn) / checkInInterval;
+    uint keepingFeeMult = calculateKeepingFeeMult();
     uint requiredBalance = 0;
 
     for (uint i = 0; i < activeKeepersAddresses.length; i++) {
@@ -271,6 +305,19 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
 
     require(balance >= requiredBalance);
     return balance - requiredBalance;
+  }
+
+
+  function calculateKeepingFeeMult() internal view returns (uint) {
+    uint timeSinceLastOwnerCheckIn = SafeMath.sub(getBlockTimestamp(), lastOwnerCheckInAt);
+    require(timeSinceLastOwnerCheckIn <= checkInInterval);
+
+    timeSinceLastOwnerCheckIn = ceil(timeSinceLastOwnerCheckIn, 600); // ceil to 10 minutes
+    if (timeSinceLastOwnerCheckIn > checkInInterval) {
+      timeSinceLastOwnerCheckIn = checkInInterval;
+    }
+
+    return SafeMath.mul(KEEPING_FEE_ROUNDING_MULT, timeSinceLastOwnerCheckIn) / checkInInterval;
   }
 
 
@@ -382,6 +429,14 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
   //
   function getBlockTimestamp() internal view returns (uint) {
     return now;
+  }
+
+
+  // See: https://stackoverflow.com/a/2745086/804678
+  //
+  function ceil(uint x, uint y) internal pure returns (uint) {
+    if (x == 0) return 0;
+    return (1 + ((x - 1) / y)) * y;
   }
 
 }
