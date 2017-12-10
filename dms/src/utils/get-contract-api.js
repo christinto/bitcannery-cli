@@ -5,7 +5,7 @@ import LegacyContractABI from '../../../truffle/build/contracts/CryptoLegacy.jso
 
 import config from '../config'
 
-export default async function () {
+export default async function getContractAPI() {
   const LegacyContract = truffleContract(LegacyContractABI)
 
   const provider = new Web3.providers.HttpProvider(`http://${config.host}:${config.port}`)

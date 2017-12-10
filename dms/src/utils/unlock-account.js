@@ -1,0 +1,80 @@
+import getWeb3 from './get-web3'
+import {promisifyCall} from './promisify'
+
+import config from '../config'
+
+const RUNNING = -1
+const WAITING_FOR_JSON_RPC = 0
+const WAITING_FOR_AT_LEAST_ONE_ACCOUNT = 1
+const WAITING_FOR_ACCOUNT_UNLOCKING = 2
+
+const TIMEOUT = 1000
+
+function delay (ms) {
+  return new Promise((resolve) => setTimeout(() => resolve(), ms))
+}
+
+async function isLocked (web3, address) {
+  try {
+    await promisifyCall(web3.eth.sign, web3.eth, [address, ''])
+  } catch (e) {
+    return true
+  }
+  return false
+}
+
+export default async function unlockAccount() {
+  let state = RUNNING
+
+  while (true) {
+    try {
+      const web3 = await getWeb3()
+      const accounts = await promisifyCall(web3.eth.getAccounts, web3.eth)
+
+      if (state === WAITING_FOR_JSON_RPC) {
+        state = RUNNING
+      }
+
+      if (accounts.length === 0) {
+        if (state !== WAITING_FOR_AT_LEAST_ONE_ACCOUNT) {
+          console.error(`\nThere are no accounts, please add at least one to your Ethereum client.`)
+          console.error(`Waiting for accounts...`)
+          state = WAITING_FOR_AT_LEAST_ONE_ACCOUNT
+        }
+        await delay(TIMEOUT)
+        continue
+      } else if (state === WAITING_FOR_AT_LEAST_ONE_ACCOUNT) {
+        state = RUNNING
+      }
+
+      const address = accounts[0]
+
+      if (await isLocked(web3, address)) {
+        if (state !== WAITING_FOR_ACCOUNT_UNLOCKING) {
+          console.error(`\nYour default account is locked, please unlock it. `)
+          console.error(`In web3 console, you can use this command:\n`)
+          console.error(`> web3.personal.unlockAccount(\"${address}\")\n`)
+          console.error(`waiting...`)
+          state = WAITING_FOR_ACCOUNT_UNLOCKING
+        }
+        await delay(TIMEOUT)
+        continue
+      } else {
+        return {web3, address}
+      }
+    } catch (e) {
+      if (state !== WAITING_FOR_JSON_RPC) {
+        console.error(`\nFailed to connect to JSON RPC.\n`)
+        console.error(`Please start your Ethereum client with JSON RPC at`)
+        console.error(`http://${config.host}:${config.port}\n`)
+        console.error(`If you have Ethereum client listening at different host/port,`)
+        console.error(`please spceify them using --rpc_host and --rpc_port options`)
+        console.error(`to dms command.\n`)
+        console.error(`Waiting...`)
+        state = WAITING_FOR_JSON_RPC
+      }
+
+      await delay(TIMEOUT)
+    }
+  }
+}
