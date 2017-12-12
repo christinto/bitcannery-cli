@@ -10,8 +10,10 @@ const States = {
   Cancelled: 3,
 }
 
+States.stringify = stateToString
+
 function stateToString(number) {
-  return ['CallForKeepers', 'Active', 'CallForKeys', 'Cancelled'][number]
+  return ['CallForKeepers', 'Active', 'CallForKeys', 'Cancelled'][+number]
 }
 
 function assembleKeeperStruct(rawStruct) {

@@ -20,7 +20,7 @@ async function inspectTransaction(txResultPromise) {
 export default async function tx(txResultPromise) {
   const txProps = await inspectTransaction(txResultPromise)
   if (!txProps.success) {
-    throw Error('transaction failed', txProps)
+    throw Error('transaction failed')
   }
   return txProps
 }

@@ -40,7 +40,7 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
   }
 
   modifier activeKeepersOnly() {
-    require(activeKeepers[msg.sender].lastCheckInAt > 0);
+    require(isActiveKeeper(msg.sender));
     _;
   }
 
@@ -142,6 +142,14 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     return encryptedData.suppliedKeyParts[index];
   }
 
+  function isActiveKeeper(address addr) public view returns (bool) {
+    return activeKeepers[addr].lastCheckInAt > 0;
+  }
+
+  function didSendProposal(address addr) public view returns (bool) {
+    return proposedKeeperFlags[addr];
+  }
+
 
   // Called by a Keeper to submit their proposal.
   //
@@ -149,7 +157,7 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     atState(States.CallForKeepers)
   {
     require(msg.sender != owner);
-    require(!proposedKeeperFlags[msg.sender]);
+    require(!didSendProposal(msg.sender));
     require(publicKey.length <= 128);
 
     bytes32 publicKeyHash = keccak256(publicKey);
