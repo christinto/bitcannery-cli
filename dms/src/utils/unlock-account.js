@@ -23,12 +23,12 @@ async function isLocked (web3, address) {
   return false
 }
 
-export default async function unlockAccount() {
+export default async function unlockAccount () {
   let state = RUNNING
 
   while (true) {
     try {
-      const web3 = await getWeb3()
+      const web3 = getWeb3()
       const accounts = await promisifyCall(web3.eth.getAccounts, web3.eth)
 
       if (state === WAITING_FOR_JSON_RPC) {
@@ -53,14 +53,14 @@ export default async function unlockAccount() {
         if (state !== WAITING_FOR_ACCOUNT_UNLOCKING) {
           console.error(`\nYour default account is locked, please unlock it. `)
           console.error(`In web3 console, you can use this command:\n`)
-          console.error(`> web3.personal.unlockAccount(\"${address}\")\n`)
+          console.error(`> web3.personal.unlockAccount("${address}")\n`)
           console.error(`waiting...`)
           state = WAITING_FOR_ACCOUNT_UNLOCKING
         }
         await delay(TIMEOUT)
         continue
       } else {
-        return {web3, address}
+        return address
       }
     } catch (e) {
       if (state !== WAITING_FOR_JSON_RPC) {

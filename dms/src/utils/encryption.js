@@ -2,8 +2,7 @@ const crypto = require('crypto')
 const eccrypto = require('eccrypto')
 const secrets = require('secrets.js')
 const aesjs = require('aes-js')
-const Web3 = require('web3')
-const web3 = new Web3()
+const soliditySha3 = require('solidity-sha3')
 
 const packingUtils = require('./pack')
 const prefixUtils = require('./prefix')
@@ -80,7 +79,7 @@ function sha3 (data) {
 
   dataToHash = prefixUtils.ensure0x(dataToHash)
 
-  return web3.utils.soliditySha3(dataToHash)
+  return soliditySha3(dataToHash)
 }
 
 /**

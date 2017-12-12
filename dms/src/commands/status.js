@@ -1,6 +1,6 @@
-import getWeb3 from '../utils/get-web3'
 import moment from 'moment'
-import getContractApi from '../utils/get-contract-api'
+import getWeb3 from '../utils/get-web3'
+import getContractClass from '../utils/get-contract-class'
 const {stateToString} = require('../utils/contract-api')
 
 export const description = 'Display the status of given legacy contract'
@@ -18,7 +18,7 @@ export function yargsBuilder (yargs) {
 }
 
 export async function handler (argv) {
-  const LegacyContract = await getContractApi()
+  const LegacyContract = await getContractClass()
   const instance = await LegacyContract.at(argv.contract_id)
 
   const owner = await instance.owner()
