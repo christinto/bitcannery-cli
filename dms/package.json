@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "precommit": "standard",
-    "fix": "standard --fix"
+    "precommit": "npm run fix",
+    "fix": "prettier --write --list-different 'src/**/*.js' || true"
   },
   "author": "",
   "dependencies": {
@@ -17,6 +17,7 @@
     "bignumber.js": "^4.1.0",
     "eccrypto": "^1.0.3",
     "moment": "^2.19.3",
+    "prettier": "^1.9.2",
     "readline-sync": "^1.4.7",
     "secrets.js": "^0.1.8",
     "solidity-sha3": "^0.4.1",
@@ -26,7 +27,6 @@
     "yn": "^2.0.0"
   },
   "devDependencies": {
-    "husky": "^0.14.3",
-    "standard": "^10.0.3"
+    "husky": "^0.14.3"
   }
 }

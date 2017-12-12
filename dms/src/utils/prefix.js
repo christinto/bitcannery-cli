@@ -1,4 +1,4 @@
-function trim0x (str) {
+function trim0x(str) {
   if (str.substring(0, 2) === '0x') {
     return str.substring(2)
   }
@@ -6,7 +6,7 @@ function trim0x (str) {
   return str
 }
 
-function ensure0x (str) {
+function ensure0x(str) {
   if (str.substring(0, 2) !== '0x') {
     return '0x' + str
   }
@@ -16,5 +16,5 @@ function ensure0x (str) {
 
 module.exports = {
   trim0x,
-  ensure0x
+  ensure0x,
 }

@@ -10,11 +10,11 @@ const WAITING_FOR_ACCOUNT_UNLOCKING = 2
 
 const TIMEOUT = 1000
 
-function delay (ms) {
-  return new Promise((resolve) => setTimeout(() => resolve(), ms))
+function delay(ms) {
+  return new Promise(resolve => setTimeout(() => resolve(), ms))
 }
 
-async function isLocked (web3, address) {
+async function isLocked(web3, address) {
   try {
     await promisifyCall(web3.eth.sign, web3.eth, [address, ''])
   } catch (e) {
@@ -23,7 +23,7 @@ async function isLocked (web3, address) {
   return false
 }
 
-export default async function unlockAccount () {
+export default async function unlockAccount() {
   let state = RUNNING
 
   while (true) {

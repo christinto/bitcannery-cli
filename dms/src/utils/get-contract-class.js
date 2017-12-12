@@ -4,7 +4,7 @@ import LegacyContractABI from '../../../truffle/build/contracts/CryptoLegacy.jso
 
 let contractInstance
 
-function _getContractAPI () {
+function _getContractAPI() {
   const LegacyContract = truffleContract(LegacyContractABI)
   const web3 = getWeb3()
   const provider = web3.currentProvider
@@ -14,7 +14,7 @@ function _getContractAPI () {
   return LegacyContract
 }
 
-export default function getContractAPI () {
+export default function getContractAPI() {
   if (!contractInstance) {
     contractInstance = _getContractAPI()
   }
