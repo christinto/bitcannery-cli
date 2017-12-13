@@ -14,7 +14,7 @@ async function inspectTransaction(txResultPromise) {
   const events = txResult.logs
     .map(log => (log.event ? {name: log.event, args: log.args} : null))
     .filter(x => !!x)
-  return {result: txResult, success, txPriceWei, events}
+  return {result: txResult, txHash: txResult.tx, success, txPriceWei, events}
 }
 
 export default async function tx(txResultPromise) {

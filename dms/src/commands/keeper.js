@@ -1,7 +1,10 @@
-import {States} from '../utils/contract-api'
+import BigNumber from 'bignumber.js'
+
+import {States, assembleKeeperStruct} from '../utils/contract-api'
 import getContractClass from '../utils/get-contract-class'
 import getWeb3 from '../utils/get-web3'
 import {promisifyCall} from '../utils/promisify'
+import {formatWei} from '../utils/format'
 import tx from '../utils/tx'
 
 import encryption from '../utils/encryption'
@@ -21,14 +24,17 @@ export function yargsBuilder(yargs) {
     .demandOption(['contract'])
 }
 
+const SECONDS_IN_MONTH = 60 * 60 * 24 * 30
+
 const web3 = getWeb3()
 
 const keypair = generateKeyPair()
 
 const config = {
   accountIndex: 1,
-  maxCheckInIntervalSec: 60 * 60 * 24 * 30 * 365, // 1 year
-  keepingFeePerContractMonth: web3.toWei('0.01', 'ether'),
+  maxCheckInIntervalSec: SECONDS_IN_MONTH * 365,
+  keepingFeePerContractMonth: String(web3.toWei('0.01', 'ether')),
+  checkinsPerKeepingPeriod: 2,
   keypair: keypair,
 }
 
@@ -77,7 +83,7 @@ async function checkContract(contract, account) {
 //
 
 async function handleCallForKeepersState(contract, account) {
-  const didSendProposal = await contract.didSendProposal(account, {from: account})
+  const didSendProposal = await contract.didSendProposal(account)
   if (didSendProposal) {
     return
   }
@@ -104,9 +110,23 @@ async function checkContractEgligibility(contract) {
 
 async function sendProposal(contract, account) {
   console.error(`Sending proposal for contract ${contract.address}...`)
-  const keepingFee = config.keepingFeePerContractMonth // TODO: calculate keeping fee
-  await tx(contract.submitKeeperProposal(config.keypair.publicKey, keepingFee, {from: account, gas: 4700000}))
+  const keepingFee = await calculateKeepingFee(contract)
+  console.error(`Keeping fee: ${keepingFee}`)
+  const {result} = await tx(
+    contract.submitKeeperProposal(config.keypair.publicKey, keepingFee, {
+      from: account,
+      gas: 4700000, // TODO: estimate gas
+    }),
+  )
   console.error(`Done!`)
+}
+
+async function calculateKeepingFee(contract) {
+  const checkInInterval = await contract.checkInInterval()
+  return new BigNumber(checkInInterval)
+    .div(SECONDS_IN_MONTH)
+    .mul(config.keepingFeePerContractMonth)
+    .round(BigNumber.ROUND_UP)
 }
 
 //
@@ -115,7 +135,41 @@ async function sendProposal(contract, account) {
 
 async function handleActiveState(contract, account) {
   const isActiveKeeper = await contract.isActiveKeeper(account)
-  //
+  if (!isActiveKeeper) {
+    console.error(`Account ${account} is not an active Keeper for contract ${contract.address}`)
+    // TODO: remove from list
+    return
+  }
+
+  const [keeper, checkInInterval, lastOwnerCheckInAt] = [
+    assembleKeeperStruct(await contract.activeKeepers(account)),
+    (await contract.checkInInterval()).toNumber(),
+    (await contract.lastOwnerCheckInAt()).toNumber(),
+  ]
+
+  const now = Math.floor(Date.now() / 1000)
+  const passedSinceOwnerCheckIn = now - lastOwnerCheckInAt
+
+  if (passedSinceOwnerCheckIn <= checkInInterval && keeper.lastCheckInAt > lastOwnerCheckInAt) {
+    return
+  }
+
+  console.error(`Performing check-in for contract ${contract.address}...`)
+
+  // TODO: check that ETH to be received is sufficiently bigger than TX price, and don't
+  // check in otherwise
+
+  const {txHash, txPriceWei} = await tx(
+    contract.keeperCheckIn({
+      from: account,
+      gas: 4700000, // TODO: estimate gas
+    }),
+  )
+
+  console.error(`Done!`)
+  console.error(`Transaction hash: ${txHash}`)
+  console.error(`Received ${formatWei(keeper.balance)}`)
+  console.error(`Paid for transaction: ${formatWei(txPriceWei)}`)
 }
 
 //
