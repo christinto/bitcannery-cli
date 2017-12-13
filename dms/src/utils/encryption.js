@@ -2,7 +2,7 @@ const crypto = require('crypto')
 const eccrypto = require('eccrypto')
 const secrets = require('secrets.js')
 const aesjs = require('aes-js')
-const soliditySha3 = require('solidity-sha3')
+const soliditySha3 = require('solidity-sha3').default
 
 const packingUtils = require('./pack')
 const prefixUtils = require('./prefix')
