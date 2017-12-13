@@ -1,3 +1,4 @@
 node_modules/
 .blockchain/
 *.log
+*.sublime-workspace

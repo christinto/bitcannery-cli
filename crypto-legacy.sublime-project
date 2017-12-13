@@ -1,0 +1,13 @@
+{
+	"folders":
+	[
+		{
+			"path": "."
+		}
+	],
+  "settings": {
+        "js_prettier": {
+          "prettier_cli_path": "dms/node_modules/.bin/prettier"
+        }
+    }
+}
