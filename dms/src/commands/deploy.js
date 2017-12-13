@@ -13,6 +13,7 @@ function delay(ms) {
 // Fail if tx is going to take more gas than this.
 //
 const GAS_HARD_LIMIT = 4700000
+const NUM_KEEPERS = 2
 
 export const description = 'Deploy new legacy contract to blockchain'
 
@@ -47,13 +48,15 @@ export async function handler() {
   let numKeepersProposals = (await instance.getNumProposals()).toNumber()
   let currentKeepersProposals = numKeepersProposals
 
-  while (numKeepersProposals < 2) {
+  while (numKeepersProposals < NUM_KEEPERS) {
     numKeepersProposals = (await instance.getNumProposals()).toNumber()
     if (numKeepersProposals > currentKeepersProposals) {
       console.log(`${numKeepersProposals} keepers have joined...`)
       currentKeepersProposals = numKeepersProposals
     }
-    await delay(1000)
+    if (numKeepersProposals < NUM_KEEPERS) {
+      await delay(1000)
+    }
   }
 
   console.log(`You have enough keepers now. Do you want to activate the contract?`)
@@ -77,6 +80,9 @@ export async function handler() {
     numKeepersToRecover,
     aesCounter,
   )
+
+  const state = await contract.state()
+  assert.equal(state.toNumber(), States.Active)
 
   console.log(legacy)
 }
