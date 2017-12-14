@@ -1,10 +1,13 @@
+import assert from 'assert'
 import yn from 'yn'
 import readlineSync from 'readline-sync'
 
 import getContractClass from '../utils/get-contract-class'
 import unlockAccount from '../utils/unlock-account'
 import {generateKeyPair, encryptData} from '../utils/encryption'
-import {assembleProposalStruct} from '../utils/contract-api'
+import {States, assembleProposalStruct} from '../utils/contract-api'
+import {formatWei} from '../utils/format'
+import tx from '../utils/tx'
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(() => resolve(), ms))
@@ -39,7 +42,7 @@ export async function handler() {
   const LegacyContract = await getContractClass()
 
   // const instance = await LegacyContract.at('0x0acaae5009e4b5431e575aa00985df045dd4acad')
-  const instance = await LegacyContract.new(2 * 60 * 60, {from: address, gas: GAS_HARD_LIMIT})
+  const instance = await LegacyContract.new(1 * 60 * 60, {from: address, gas: GAS_HARD_LIMIT})
 
   console.log(`Contract is published.`)
   console.log(`Contract address is ${instance.address}`)
@@ -60,40 +63,64 @@ export async function handler() {
   }
 
   console.log(`You have enough keepers now. Do you want to activate the contract?`)
-  const doYouWantToPay = readlineSync.question('You will pay 0.25 ETH [Y/n] ')
+
+  const selectedProposalIndices = [0, 1] // TODO: remove hardcode
+
+  const activationPrice = await instance.calculateActivationPrice(selectedProposalIndices)
+  const doYouWantToPay = readlineSync.question(
+    `You will pay ${formatWei(activationPrice)} for each check-in interval [Y/n] `,
+  )
 
   if (!yn(doYouWantToPay)) {
     return
   }
 
   const proposals = await fetchKeeperProposals(instance)
-  const numKeepersToRecover = Math.max(Math.floor(proposals.length * 2 / 3), 2)
-  const aesCounter = 4
+  console.log('proposals:', proposals)
+  const selectedProposals = selectedProposalIndices.map(i => proposals[i])
+  console.log('selectedProposals:', selectedProposals)
+  const keeperPublicKeys = selectedProposals.map(p => p.publicKey)
+  const numKeepersToRecover = Math.max(Math.floor(selectedProposals.length * 2 / 3), 2)
 
-  const legacy = await encryptData(
+  console.log(`keeperPublicKeys:`, keeperPublicKeys)
+  console.log(`numKeepersToRecover:`, numKeepersToRecover)
+
+  const encryptionResult = await encryptData(
     '0x' + Buffer.from('test message').toString('hex'),
     publicKey,
-    [
-      '0x04f57f84ac80bed4758d51bd785d3900043d0799d5d7073d3f4fb9727c76f1e813fac54ccde14f4e7fe4bbd7c0c3c6b6774a22b4da7f0d20ed96d97989e1732b3a',
-      '0x0402586d0100021eedad6d27cfe923635e17de7b30c93455724a5ebcfa68a414167f6383298b78e478ccae419bcaab4985e301c1891de77330998a38e5968874a9',
-    ],
+    keeperPublicKeys,
     numKeepersToRecover,
-    aesCounter,
   )
 
-  const state = await contract.state()
-  assert.equal(state.toNumber(), States.Active)
+  console.log('encryptionResult:', encryptionResult)
 
-  console.log(legacy)
+  console.error(`Activating contract...`)
+
+  const {txHash, txPriceWei} = await tx(
+    instance.acceptKeepers(
+      selectedProposalIndices,
+      encryptionResult.keyPartHashes,
+      encryptionResult.encryptedKeyParts,
+      encryptionResult.encryptedLegacyData,
+      encryptionResult.legacyDataHash,
+      encryptionResult.aesCounter,
+      {
+        from: address,
+        gas: GAS_HARD_LIMIT, // TODO: estimate gas usage
+        value: activationPrice,
+      },
+    ),
+  )
+
+  console.error(`Done! Transaction hash: ${txHash}`)
+  console.error(`Paid for transaction: ${formatWei(txPriceWei)}`)
+
+  const state = await instance.state()
+  assert.equal(state.toNumber(), States.Active)
 }
 
 async function fetchKeeperProposals(instance) {
-  const proposalsNumber = await instance.getNumProposals()
-  const proposals = []
-
-  for (let i = 0; i < proposalsNumber; ++i) {
-    proposals.push(assembleProposalStruct(await instance.keeperProposals(i)))
-  }
-
-  return proposals
+  const numProposals = await instance.getNumProposals()
+  const promises = new Array(+numProposals).fill(0).map((_, i) => instance.keeperProposals(i))
+  return (await Promise.all(promises)).map(rawProposal => assembleProposalStruct(rawProposal))
 }

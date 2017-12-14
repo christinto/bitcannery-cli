@@ -108,7 +108,6 @@ async function ecDecrypt(encrypted, privateKey) {
  * bobPublicKey - hex string w/ or w/o 0x prefix
  * keeperPublicKeys - array of hex strings w/ or w/o 0x prefix
  * numKeepersToRecover - number of keepers sufficient to recover the key
- * aesCounter - int counter for aes block mode
  *
  *  returns {
  *    encryptedKeyParts - packed 0x hex string of encrypted keeper keys
@@ -117,17 +116,17 @@ async function ecDecrypt(encrypted, privateKey) {
  *    encryptedLegacyData - 0x hex string of encrypted legacy data
  *  }
  */
-async function encryptData(
-  legacyData,
-  bobPublicKey,
-  keeperPublicKeys,
-  numKeepersToRecover,
-  aesCounter,
-) {
+async function encryptData(legacyData, bobPublicKey, keeperPublicKeys, numKeepersToRecover) {
   const legacyDataHash = sha3(legacyData)
   const aesKeyBuffer = crypto.randomBytes(KEY_LENGTH_IN_BITS / 8)
+  const aesCounterBuffer = crypto.randomBytes(16)
 
-  let encryptedLegacyData = await encryptLegacy(legacyData, bobPublicKey, aesKeyBuffer, aesCounter)
+  let encryptedLegacyData = await encryptLegacy(
+    legacyData,
+    bobPublicKey,
+    aesKeyBuffer,
+    aesCounterBuffer,
+  )
 
   encryptedLegacyData = prefixUtils.ensure0x(encryptedLegacyData)
 
@@ -162,6 +161,7 @@ async function encryptData(
     keyPartHashes,
     legacyDataHash,
     encryptedLegacyData,
+    aesCounter: '0x' + aesCounterBuffer.toString('hex'),
   }
 }
 
