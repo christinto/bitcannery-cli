@@ -1,14 +1,14 @@
 import BigNumber from 'bignumber.js'
+import assert from 'assert'
 
-import {States, assembleKeeperStruct} from '../utils/contract-api'
+import {States, assembleKeeperStruct, assembleEncryptedDataStruct} from '../utils/contract-api'
 import getContractClass from '../utils/get-contract-class'
 import getWeb3 from '../utils/get-web3'
 import {promisifyCall} from '../utils/promisify'
 import {formatWei} from '../utils/format'
 import tx from '../utils/tx'
-
-import encryption from '../utils/encryption'
-const {generateKeyPair} = encryption
+import encryptionUtils from '../utils/encryption'
+import packingUtils from '../utils/pack'
 
 export const description = 'Run Keeper node'
 
@@ -111,14 +111,15 @@ async function checkContractEgligibility(contract) {
 async function sendProposal(contract, account) {
   console.error(`Sending proposal for contract ${contract.address}...`)
   const keepingFee = await calculateKeepingFee(contract)
-  console.error(`Keeping fee: ${keepingFee}`)
-  const {result} = await tx(
+  console.error(`Keeping fee per owner check-in: ${formatWei(keepingFee)}`)
+  const {txHash, txPriceWei} = await tx(
     contract.submitKeeperProposal(config.keypair.publicKey, keepingFee, {
       from: account,
       gas: 4700000, // TODO: estimate gas
     }),
   )
-  console.error(`Done!`)
+  console.error(`Done! Transaction hash: ${txHash}`)
+  console.error(`Paid for transaction: ${formatWei(txPriceWei)}`)
 }
 
 async function calculateKeepingFee(contract) {
@@ -166,10 +167,20 @@ async function handleActiveState(contract, account) {
     }),
   )
 
-  console.error(`Done!`)
-  console.error(`Transaction hash: ${txHash}`)
-  console.error(`Received ${formatWei(keeper.balance)}`)
-  console.error(`Paid for transaction: ${formatWei(txPriceWei)}`)
+  console.error(
+    `Done! Transaction hash: ${txHash}\n` +
+      `Received ${formatWei(keeper.balance)}, ` +
+      `paid for transaction ${formatWei(txPriceWei)}, ` +
+      `balance change ${formatWei(keeper.balance.minus(txPriceWei))}`,
+  )
+
+  if (passedSinceOwnerCheckIn > checkInInterval) {
+    const state = (await contract.state()).toNumber()
+    if (state === States.CallForKeys) {
+      console.error(`Owner disappeared, started keys collection`)
+      await handleCallForKeysState(contract, account)
+    }
+  }
 }
 
 //
@@ -177,7 +188,47 @@ async function handleActiveState(contract, account) {
 //
 
 async function handleCallForKeysState(contract, account) {
-  //
+  const keeper = assembleKeeperStruct(await contract.activeKeepers(account))
+  if (keeper.keyPartSupplied) {
+    return
+  }
+
+  console.error(`Supplying key part for contract ${contract.address}...`)
+
+  const [numKeepers, encryptedData] = [
+    (await contract.getNumKeepers()).toNumber(),
+    assembleEncryptedDataStruct(await contract.encryptedData()),
+  ]
+
+  const activeKeepersAddresses = await Promise.all(
+    new Array(numKeepers).fill(0).map((_, i) => contract.activeKeepersAddresses(i)),
+  )
+
+  const myIndex = activeKeepersAddresses.indexOf(account)
+  assert(myIndex >= 0, `active keeper's address should be in keeper addresses list`)
+
+  const enctyptedKeyParts = packingUtils.unpack(encryptedData.encryptedKeyParts, numKeepers)
+  const encryptedKeyPartData = enctyptedKeyParts[myIndex]
+  const encryptedKeyPart = packingUtils.unpackElliptic(encryptedKeyPartData)
+  const keyPart = await encryptionUtils.ecDecrypt(encryptedKeyPart, config.keypair.privateKey)
+
+  console.error(`Decrypted key part:`, keyPart)
+
+  const {txHash, txPriceWei} = await tx(
+    contract.supplyKey(keyPart, {
+      from: account,
+      gas: 4700000, // TODO: estimate gas
+    }),
+  )
+
+  const received = keeper.balance.plus(keeper.keepingFee)
+
+  console.error(
+    `Done! Transaction hash: ${txHash}\n` +
+      `Received ${formatWei(received)}, ` +
+      `paid for transaction ${formatWei(txPriceWei)}, ` +
+      `balance change ${formatWei(received.minus(txPriceWei))}`,
+  )
 }
 
 //
@@ -185,7 +236,7 @@ async function handleCallForKeysState(contract, account) {
 //
 
 async function handleCancelledState(contract, account) {
-  //
+  // nop
 }
 
 //
