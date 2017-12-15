@@ -174,12 +174,13 @@ async function handleActiveState(contract, account) {
       `balance change ${formatWei(keeper.balance.minus(txPriceWei))}`,
   )
 
-  if (passedSinceOwnerCheckIn > checkInInterval) {
-    const state = (await contract.state()).toNumber()
-    if (state === States.CallForKeys) {
-      console.error(`Owner disappeared, started keys collection`)
-      await handleCallForKeysState(contract, account)
-    }
+  const state = (await contract.state()).toNumber()
+
+  if (state === States.CallForKeys) {
+    console.error(`Owner disappeared, started keys collection`)
+    await handleCallForKeysState(contract, account)
+  } else {
+    // TODO: check for continuation contract
   }
 }
 
