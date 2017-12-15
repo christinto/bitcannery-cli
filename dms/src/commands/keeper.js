@@ -151,7 +151,7 @@ async function handleActiveState(contract, account) {
   const now = Math.floor(Date.now() / 1000)
   const passedSinceOwnerCheckIn = now - lastOwnerCheckInAt
 
-  if (passedSinceOwnerCheckIn <= checkInInterval && keeper.lastCheckInAt > lastOwnerCheckInAt) {
+  if (passedSinceOwnerCheckIn <= checkInInterval && keeper.lastCheckInAt >= lastOwnerCheckInAt) {
     return
   }
 
