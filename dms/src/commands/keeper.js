@@ -135,6 +135,8 @@ async function handleActiveState(contract, account) {
     return
   }
 
+  // TODO: if contract is not in the list, add and log
+
   const [keeper, checkInInterval, lastOwnerCheckInAt] = [
     assembleKeeperStruct(await contract.activeKeepers(account)),
     (await contract.checkInInterval()).toNumber(),
