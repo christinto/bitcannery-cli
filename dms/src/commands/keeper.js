@@ -157,8 +157,7 @@ async function handleActiveState(contract, account) {
 
   console.error(`Performing check-in for contract ${contract.address}...`)
 
-  // TODO: check that ETH to be received is sufficiently bigger than TX price, and don't
-  // check in otherwise
+  // TODO: check that ETH to be received is bigger than TX price, and don't check in otherwise
 
   const {txHash, txPriceWei} = await tx(
     contract.keeperCheckIn({
@@ -226,7 +225,25 @@ async function handleCallForKeysState(contract, account) {
 //
 
 async function handleCancelledState(contract, account) {
-  // nop
+  const keeper = assembleKeeperStruct(await contract.activeKeepers(account))
+  // TODO: check that ETH to be received is bigger than TX price, and don't check in otherwise
+  if (keeper.balance.isZero()) {
+    return
+  }
+
+  console.error(`Performing final check-in for contract ${contract.address}...`)
+
+  const {txHash, txPriceWei} = await tx(
+    contract.keeperCheckIn({
+      from: account,
+      gas: 4700000, // TODO: estimate gas
+    }),
+  )
+
+  printTx(txHash, keeper.balance, txPriceWei)
+
+  // TODO: check for continuation contract
+  // TODO: remove contract from watchlist
 }
 
 //
