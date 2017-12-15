@@ -167,12 +167,7 @@ async function handleActiveState(contract, account) {
     }),
   )
 
-  console.error(
-    `Done! Transaction hash: ${txHash}\n` +
-      `Received ${formatWei(keeper.balance)}, ` +
-      `paid for transaction ${formatWei(txPriceWei)}, ` +
-      `balance change ${formatWei(keeper.balance.minus(txPriceWei))}`,
-  )
+  printTx(txHash, keeper.balance, txPriceWei)
 
   const state = (await contract.state()).toNumber()
 
@@ -213,7 +208,7 @@ async function handleCallForKeysState(contract, account) {
   const encryptedKeyPart = packingUtils.unpackElliptic(encryptedKeyPartData)
   const keyPart = await encryptionUtils.ecDecrypt(encryptedKeyPart, config.keypair.privateKey)
 
-  console.error(`Decrypted key part:`, keyPart)
+  console.error(`Decrypted key part: ${keyPart}`)
 
   const {txHash, txPriceWei} = await tx(
     contract.supplyKey(keyPart, {
@@ -223,13 +218,7 @@ async function handleCallForKeysState(contract, account) {
   )
 
   const received = keeper.balance.plus(keeper.keepingFee)
-
-  console.error(
-    `Done! Transaction hash: ${txHash}\n` +
-      `Received ${formatWei(received)}, ` +
-      `paid for transaction ${formatWei(txPriceWei)}, ` +
-      `balance change ${formatWei(received.minus(txPriceWei))}`,
-  )
+  printTx(txHash, received, txPriceWei)
 }
 
 //
@@ -243,6 +232,15 @@ async function handleCancelledState(contract, account) {
 //
 // Utils
 //
+
+function printTx(txHash, received, txPrice) {
+  console.error(
+    `Done! Transaction hash: ${txHash}\n` +
+      `Received ${formatWei(received)}, ` +
+      `transaction fee ${formatWei(txPrice)}, ` +
+      `balance change ${formatWei(received.minus(txPrice))}`,
+  )
+}
 
 async function getAccountWithIndex(index) {
   const accounts = await promisifyCall(web3.eth.getAccounts, web3.eth)
