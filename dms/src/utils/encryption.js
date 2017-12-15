@@ -49,8 +49,8 @@ function aesEncrypt(textBuffer, keyBuffer, aesCounter) {
 }
 
 function aesDecrypt(encryptedHex, hexKey, aesCounter) {
-  const key = toUint8Array(Buffer.from(hexKey, 'hex'))
-  const encryptedBytes = aesjs.utils.hex.toBytes(encryptedHex)
+  const key = toUint8Array(Buffer.from(prefixUtils.trim0x(hexKey), 'hex'))
+  const encryptedBytes = aesjs.utils.hex.toBytes(prefixUtils.trim0x(encryptedHex))
 
   const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(aesCounter)) // eslint-disable-line
   const decryptedBytes = aesCtr.decrypt(encryptedBytes)
@@ -60,9 +60,10 @@ function aesDecrypt(encryptedHex, hexKey, aesCounter) {
 
 async function encryptLegacy(legacyData, bobPublicKey, aesKey, aesCounter) {
   const encryptedForBob = await ecEncrypt(legacyData, bobPublicKey)
-
-  const encryptedForBobBuffer = Buffer.from(packingUtils.packElliptic(encryptedForBob), 'hex')
-
+  const encryptedForBobBuffer = Buffer.from(
+    prefixUtils.trim0x(packingUtils.packElliptic(encryptedForBob)),
+    'hex',
+  )
   return aesEncrypt(encryptedForBobBuffer, aesKey, aesCounter)
 }
 
@@ -154,7 +155,7 @@ async function encryptData(legacyData, bobPublicKey, keeperPublicKeys, numKeeper
     keyPartHashes[i] = sha3(keeperSecret)
   }
 
-  const encryptedKeyParts = prefixUtils.ensure0x(packingUtils.pack(encryptedKeyPartsArray))
+  const encryptedKeyParts = packingUtils.pack(encryptedKeyPartsArray)
 
   return {
     encryptedKeyParts,

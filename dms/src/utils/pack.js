@@ -1,3 +1,5 @@
+import prefixUtils from './prefix'
+
 const ZERO_PADDING_LENGTH = 3
 const ZERO_PADDING = '000'
 
@@ -19,8 +21,9 @@ function splitStringBySegmentLength(str, segmentLength) {
 
 function pack(segments) {
   let result = ''
+
   for (let i = 0; i < segments.length; ++i) {
-    let part = segments[i]
+    let part = prefixUtils.trim0x(segments[i])
 
     if (part.length >= Math.pow(16, ZERO_PADDING_LENGTH)) {
       throw Error(
@@ -32,13 +35,15 @@ function pack(segments) {
   }
 
   for (let i = 0; i < segments.length; ++i) {
-    result += segments[i]
+    result += prefixUtils.trim0x(segments[i])
   }
 
-  return result
+  return '0x' + result
 }
 
 function unpack(data, segmentCount) {
+  data = prefixUtils.trim0x(data)
+
   let result = []
   let substringWithLengths = data.substring(0, segmentCount * ZERO_PADDING_LENGTH)
 
@@ -49,7 +54,7 @@ function unpack(data, segmentCount) {
   let currentPos = segmentCount * ZERO_PADDING_LENGTH
   for (let i = 0; i < segmentLengths.length; ++i) {
     let part = data.substring(currentPos, currentPos + segmentLengths[i])
-    result.push(part)
+    result.push('0x' + part)
     currentPos = currentPos + segmentLengths[i]
   }
 
@@ -71,10 +76,10 @@ function unpackElliptic(packedElliptic) {
   const segments = unpack(packedElliptic, 4)
 
   return {
-    iv: Buffer.from(segments[0], 'hex'),
-    ephemPublicKey: Buffer.from(segments[1], 'hex'),
-    ciphertext: Buffer.from(segments[2], 'hex'),
-    mac: Buffer.from(segments[3], 'hex'),
+    iv: Buffer.from(prefixUtils.trim0x(segments[0]), 'hex'),
+    ephemPublicKey: Buffer.from(prefixUtils.trim0x(segments[1]), 'hex'),
+    ciphertext: Buffer.from(prefixUtils.trim0x(segments[2]), 'hex'),
+    mac: Buffer.from(prefixUtils.trim0x(segments[3]), 'hex'),
   }
 }
 
