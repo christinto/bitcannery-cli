@@ -76,9 +76,7 @@ export async function handler() {
   }
 
   const proposals = await fetchKeeperProposals(instance)
-  console.log('proposals:', proposals)
   const selectedProposals = selectedProposalIndices.map(i => proposals[i])
-  console.log('selectedProposals:', selectedProposals)
   const keeperPublicKeys = selectedProposals.map(p => p.publicKey)
   const numKeepersToRecover = Math.max(Math.floor(selectedProposals.length * 2 / 3), 2)
 
