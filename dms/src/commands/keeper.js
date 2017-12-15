@@ -5,7 +5,7 @@ import {States, assembleKeeperStruct, assembleEncryptedDataStruct} from '../util
 import getContractClass from '../utils/get-contract-class'
 import getWeb3 from '../utils/get-web3'
 import {formatWei} from '../utils/format'
-import unlockAccount from '../utils/unlock-account'
+import unlockAccount, {isAccountLocked} from '../utils/unlock-account'
 import tx from '../utils/tx'
 import encryptionUtils from '../utils/encryption'
 import packingUtils from '../utils/pack'
@@ -34,7 +34,7 @@ const web3 = getWeb3()
 export async function handler(argv) {
   console.error(`Keeper config:`, sanitizeKeeperConfig(keeperConfig))
 
-  const [LegacyContract, account] = [await getContractClass(), await unlockAccount()]
+  const [LegacyContract, account] = [await getContractClass(), await unlockAccount(true)]
   console.log(`Using account: ${account}`)
 
   const instance = await LegacyContract.at(argv.contract)
@@ -102,14 +102,19 @@ async function checkContractEgligibility(contract) {
 
 async function sendProposal(contract, account) {
   console.error(`==> Sending proposal for contract ${contract.address}...`)
+
   const keepingFee = await calculateKeepingFee(contract)
   console.error(`Keeping fee per owner check-in: ${formatWei(keepingFee)}`)
+
+  await ensureUnlocked(account)
+
   const {txHash, txPriceWei} = await tx(
     contract.submitKeeperProposal(keeperConfig.keypair.publicKey, keepingFee, {
       from: account,
       gas: 4700000, // TODO: estimate gas
     }),
   )
+
   console.error(`Done! Transaction hash: ${txHash}`)
   console.error(`Paid for transaction: ${formatWei(txPriceWei)}`)
 }
@@ -152,6 +157,8 @@ async function handleActiveState(contract, account) {
   console.error(`==> Performing check-in for contract ${contract.address}...`)
 
   // TODO: check that ETH to be received is bigger than TX price, and don't check in otherwise
+
+  await ensureUnlocked(account)
 
   const {txHash, txPriceWei} = await tx(
     contract.keeperCheckIn({
@@ -203,6 +210,8 @@ async function handleCallForKeysState(contract, account) {
 
   console.error(`Decrypted key part: ${keyPart}`)
 
+  await ensureUnlocked(account)
+
   const {txHash, txPriceWei} = await tx(
     contract.supplyKey(keyPart, {
       from: account,
@@ -227,6 +236,8 @@ async function handleCancelledState(contract, account) {
 
   console.error(`==> Performing final check-in for contract ${contract.address}...`)
 
+  await ensureUnlocked(account)
+
   const {txHash, txPriceWei} = await tx(
     contract.keeperCheckIn({
       from: account,
@@ -243,6 +254,13 @@ async function handleCancelledState(contract, account) {
 //
 // Utils
 //
+
+async function ensureUnlocked(account) {
+  if (await isAccountLocked(account, web3)) {
+    await unlockAccount(true)
+    console.error(`Account unlocked, resuming`)
+  }
+}
 
 function printTx(txHash, received, txPrice) {
   console.error(

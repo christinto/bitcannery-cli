@@ -11,7 +11,7 @@ const WAITING_FOR_ACCOUNT_UNLOCKING = 2
 
 const TIMEOUT = 1000
 
-async function isLocked(web3, address) {
+export async function isAccountLocked(address, web3) {
   try {
     await promisifyCall(web3.eth.sign, web3.eth, [address, ''])
   } catch (e) {
@@ -20,7 +20,7 @@ async function isLocked(web3, address) {
   return false
 }
 
-export default async function unlockAccount() {
+export default async function unlockAccount(unlockPersistently = false) {
   let state = RUNNING
 
   while (true) {
@@ -48,12 +48,18 @@ export default async function unlockAccount() {
 
       const address = accounts[config.accountIndex]
 
-      if (await isLocked(web3, address)) {
+      if (await isAccountLocked(address, web3)) {
         if (state !== WAITING_FOR_ACCOUNT_UNLOCKING) {
-          console.error(`\nYour default account is locked, please unlock it. `)
-          console.error(`In web3 console, you can use this command:\n`)
-          console.error(`> web3.personal.unlockAccount("${address}")\n`)
-          console.error(`waiting...`)
+          console.error(`\nAccount with address ${address} is locked, please unlock it.`)
+          if (unlockPersistently) {
+            console.error(`In order to run keeper node, you need to unlock it persistently.`)
+            console.error(`In web3 console, you can use this command:\n`)
+            console.error(`> web3.personal.unlockAccount("${address}", undefined, 0)\n`)
+          } else {
+            console.error(`In web3 console, you can use this command:\n`)
+            console.error(`> web3.personal.unlockAccount("${address}")\n`)
+          }
+          console.error(`Waiting...`)
           state = WAITING_FOR_ACCOUNT_UNLOCKING
         }
         await delay(TIMEOUT)
