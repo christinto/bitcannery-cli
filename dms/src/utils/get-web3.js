@@ -4,7 +4,7 @@ import config from '../config'
 let web3Instance
 
 function _getWeb3() {
-  const provider = new Web3.providers.HttpProvider(`http://${config.host}:${config.port}`)
+  const provider = new Web3.providers.HttpProvider(config.rpcConnection)
   const web3 = new Web3(provider)
   return web3
 }

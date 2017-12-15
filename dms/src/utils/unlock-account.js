@@ -1,4 +1,5 @@
 import getWeb3 from './get-web3'
+import delay from './delay'
 import {promisifyCall} from './promisify'
 
 import config from '../config'
@@ -9,10 +10,6 @@ const WAITING_FOR_AT_LEAST_ONE_ACCOUNT = 1
 const WAITING_FOR_ACCOUNT_UNLOCKING = 2
 
 const TIMEOUT = 1000
-
-function delay(ms) {
-  return new Promise(resolve => setTimeout(() => resolve(), ms))
-}
 
 async function isLocked(web3, address) {
   try {
@@ -43,11 +40,13 @@ export default async function unlockAccount() {
         }
         await delay(TIMEOUT)
         continue
+      } else if (config.accountIndex >= accounts.length) {
+        throw new Error(`\nThere is no account with index ${config.accountIndex}`)
       } else if (state === WAITING_FOR_AT_LEAST_ONE_ACCOUNT) {
         state = RUNNING
       }
 
-      const address = accounts[0]
+      const address = accounts[config.accountIndex]
 
       if (await isLocked(web3, address)) {
         if (state !== WAITING_FOR_ACCOUNT_UNLOCKING) {
@@ -66,10 +65,9 @@ export default async function unlockAccount() {
       if (state !== WAITING_FOR_JSON_RPC) {
         console.error(`\nFailed to connect to JSON RPC.\n`)
         console.error(`Please start your Ethereum client with JSON RPC at`)
-        console.error(`http://${config.host}:${config.port}\n`)
-        console.error(`If you have Ethereum client listening at different host/port,`)
-        console.error(`please spceify them using --rpc_host and --rpc_port options`)
-        console.error(`to dms command.\n`)
+        console.error(`${config.rpcConnection}\n`)
+        console.error(`If you have Ethereum client listening at different address, please`)
+        console.error(`specify it using --rpc_connection option to dms command.\n`)
         console.error(`Waiting...`)
         state = WAITING_FOR_JSON_RPC
       }

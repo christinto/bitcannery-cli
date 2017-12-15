@@ -11,6 +11,7 @@ import tx from '../utils/tx'
 import encryptionUtils from '../utils/encryption'
 import packingUtils from '../utils/pack'
 import delay from '../utils/delay'
+import config from '../config'
 
 export const description = 'Run Keeper node'
 
@@ -28,24 +29,13 @@ export function yargsBuilder(yargs) {
 
 const SECONDS_IN_MONTH = 60 * 60 * 24 * 30
 
+const keeperConfig = config.keeper
 const web3 = getWeb3()
 
-const keypair = generateKeyPair()
-
-const config = {
-  accountIndex: 1,
-  maxCheckInIntervalSec: SECONDS_IN_MONTH * 365,
-  keepingFeePerContractMonth: String(web3.toWei('0.01', 'ether')),
-  checkinsPerKeepingPeriod: 2,
-  keypair: keypair,
-}
+console.error(`Keeper config:`, sanitizeKeeperConfig(keeperConfig))
 
 export async function handler(argv) {
-  const [LegacyContract, account] = [
-    await getContractClass(),
-    await unlockAccount(config.accountIndex),
-  ]
-
+  const [LegacyContract, account] = [await getContractClass(), await unlockAccount()]
   console.log(`Using account: ${account}`)
 
   const instance = await LegacyContract.at(argv.contract)
@@ -100,11 +90,11 @@ async function handleCallForKeepersState(contract, account) {
 
 async function checkContractEgligibility(contract) {
   const checkInInterval = await contract.checkInInterval()
-  if (checkInInterval.toNumber() > config.maxCheckInIntervalSec) {
+  if (checkInInterval.toNumber() > keeperConfig.maxCheckInIntervalSec) {
     return {
       isContractEgligible: false,
       comment: `check-in interval ${checkInInterval} is larger than max ${
-        config.maxCheckInIntervalSec
+        keeperConfig.maxCheckInIntervalSec
       }`,
     }
   }
@@ -116,7 +106,7 @@ async function sendProposal(contract, account) {
   const keepingFee = await calculateKeepingFee(contract)
   console.error(`Keeping fee per owner check-in: ${formatWei(keepingFee)}`)
   const {txHash, txPriceWei} = await tx(
-    contract.submitKeeperProposal(config.keypair.publicKey, keepingFee, {
+    contract.submitKeeperProposal(keeperConfig.keypair.publicKey, keepingFee, {
       from: account,
       gas: 4700000, // TODO: estimate gas
     }),
@@ -129,7 +119,7 @@ async function calculateKeepingFee(contract) {
   const checkInInterval = await contract.checkInInterval()
   return new BigNumber(checkInInterval)
     .div(SECONDS_IN_MONTH)
-    .mul(config.keepingFeePerContractMonth)
+    .mul(keeperConfig.keepingFeePerContractMonth)
     .round(BigNumber.ROUND_UP)
 }
 
@@ -208,7 +198,7 @@ async function handleCallForKeysState(contract, account) {
   const enctyptedKeyParts = packingUtils.unpack(encryptedData.encryptedKeyParts, numKeepers)
   const encryptedKeyPartData = enctyptedKeyParts[myIndex]
   const encryptedKeyPart = packingUtils.unpackElliptic(encryptedKeyPartData)
-  const keyPart = await encryptionUtils.ecDecrypt(encryptedKeyPart, config.keypair.privateKey)
+  const keyPart = await encryptionUtils.ecDecrypt(encryptedKeyPart, keeperConfig.keypair.privateKey)
 
   console.error(`Decrypted key part: ${keyPart}`)
 
@@ -265,4 +255,14 @@ function printTx(txHash, received, txPrice) {
 async function getAccountWithIndex(index) {
   const accounts = await promisifyCall(web3.eth.getAccounts, web3.eth)
   return accounts[index]
+}
+
+function sanitizeKeeperConfig(keeperConfig) {
+  return {
+    ...keeperConfig,
+    keypair: {
+      publicKey: keeperConfig.keypair.publicKey,
+      privateKey: '<stripped for logs>',
+    },
+  }
 }
