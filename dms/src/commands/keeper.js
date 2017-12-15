@@ -32,9 +32,9 @@ const SECONDS_IN_MONTH = 60 * 60 * 24 * 30
 const keeperConfig = config.keeper
 const web3 = getWeb3()
 
-console.error(`Keeper config:`, sanitizeKeeperConfig(keeperConfig))
-
 export async function handler(argv) {
+  console.error(`Keeper config:`, sanitizeKeeperConfig(keeperConfig))
+
   const [LegacyContract, account] = [await getContractClass(), await unlockAccount()]
   console.log(`Using account: ${account}`)
 
