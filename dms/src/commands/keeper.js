@@ -6,9 +6,11 @@ import getContractClass from '../utils/get-contract-class'
 import getWeb3 from '../utils/get-web3'
 import {promisifyCall} from '../utils/promisify'
 import {formatWei} from '../utils/format'
+import unlockAccount from '../utils/unlock-account'
 import tx from '../utils/tx'
 import encryptionUtils from '../utils/encryption'
 import packingUtils from '../utils/pack'
+import delay from '../utils/delay'
 
 export const description = 'Run Keeper node'
 
@@ -39,26 +41,27 @@ const config = {
 }
 
 export async function handler(argv) {
-  try {
-    await _handler(argv)
-  } catch (err) {
-    console.log(err.stack)
-  }
-}
-
-async function _handler(argv) {
   const [LegacyContract, account] = [
     await getContractClass(),
-    await getAccountWithIndex(config.accountIndex),
+    await unlockAccount(config.accountIndex),
   ]
+
   console.log(`Using account: ${account}`)
+
   const instance = await LegacyContract.at(argv.contract)
-  await checkContract(instance, account)
+  while (true) {
+    try {
+      await checkContract(instance, account)
+    } catch (err) {
+      console.log(err.stack)
+    }
+    await delay(1000)
+  }
 }
 
 async function checkContract(contract, account) {
   const state = await contract.state()
-  console.log(`Contract state: ${States.stringify(state)}`)
+  // console.log(`Contract state: ${States.stringify(state)}`)
   switch (state.toNumber()) {
     case States.CallForKeepers: {
       return handleCallForKeepersState(contract, account)
