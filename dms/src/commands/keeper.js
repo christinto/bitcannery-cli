@@ -102,7 +102,7 @@ async function checkContractEgligibility(contract) {
 }
 
 async function sendProposal(contract, account) {
-  console.error(`Sending proposal for contract ${contract.address}...`)
+  console.error(`==> Sending proposal for contract ${contract.address}...`)
   const keepingFee = await calculateKeepingFee(contract)
   console.error(`Keeping fee per owner check-in: ${formatWei(keepingFee)}`)
   const {txHash, txPriceWei} = await tx(
@@ -148,7 +148,7 @@ async function handleActiveState(contract, account) {
     return
   }
 
-  console.error(`Performing check-in for contract ${contract.address}...`)
+  console.error(`==> Performing check-in for contract ${contract.address}...`)
 
   // TODO: check that ETH to be received is bigger than TX price, and don't check in otherwise
 
@@ -164,7 +164,7 @@ async function handleActiveState(contract, account) {
   const state = (await contract.state()).toNumber()
 
   if (state === States.CallForKeys) {
-    console.error(`Owner disappeared, started keys collection`)
+    console.error(`==> Owner disappeared, started keys collection`)
     await handleCallForKeysState(contract, account)
   } else {
     // TODO: check for continuation contract
@@ -181,7 +181,7 @@ async function handleCallForKeysState(contract, account) {
     return
   }
 
-  console.error(`Supplying key part for contract ${contract.address}...`)
+  console.error(`==> Supplying key part for contract ${contract.address}...`)
 
   const [numKeepers, encryptedData] = [
     (await contract.getNumKeepers()).toNumber(),
@@ -224,7 +224,7 @@ async function handleCancelledState(contract, account) {
     return
   }
 
-  console.error(`Performing final check-in for contract ${contract.address}...`)
+  console.error(`==> Performing final check-in for contract ${contract.address}...`)
 
   const {txHash, txPriceWei} = await tx(
     contract.keeperCheckIn({
