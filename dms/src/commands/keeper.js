@@ -4,7 +4,6 @@ import assert from 'assert'
 import {States, assembleKeeperStruct, assembleEncryptedDataStruct} from '../utils/contract-api'
 import getContractClass from '../utils/get-contract-class'
 import getWeb3 from '../utils/get-web3'
-import {promisifyCall} from '../utils/promisify'
 import {formatWei} from '../utils/format'
 import unlockAccount from '../utils/unlock-account'
 import tx from '../utils/tx'
@@ -252,11 +251,6 @@ function printTx(txHash, received, txPrice) {
       `transaction fee ${formatWei(txPrice)}, ` +
       `balance change ${formatWei(received.minus(txPrice))}`,
   )
-}
-
-async function getAccountWithIndex(index) {
-  const accounts = await promisifyCall(web3.eth.getAccounts, web3.eth)
-  return accounts[index]
 }
 
 function sanitizeKeeperConfig(keeperConfig) {
