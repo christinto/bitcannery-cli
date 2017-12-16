@@ -61,7 +61,7 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
 
   struct EncryptedData {
     bytes encryptedData;
-    uint aesCounter;
+    bytes16 aesCounter;
     bytes32 dataHash; // sha-3 hash
     bytes encryptedKeyParts; // packed array of key parts
     bytes[] suppliedKeyParts;
@@ -196,7 +196,7 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     bytes encryptedKeyParts,
     bytes _encryptedData,
     bytes32 dataHash,
-    uint aesCounter
+    bytes16 aesCounter
   ) payable external
     ownerOnly()
     atState(States.CallForKeepers)

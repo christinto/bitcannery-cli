@@ -38,7 +38,7 @@ function assembleProposalStruct(rawStruct) {
 function assembleEncryptedDataStruct(rawStruct) {
   return {
     encryptedData: rawStruct[0],
-    aesCounter: rawStruct[1].toNumber(),
+    aesCounter: rawStruct[1],
     dataHash: rawStruct[2],
     encryptedKeyParts: rawStruct[3],
     // suppliedKeyParts: rawStruct[4],

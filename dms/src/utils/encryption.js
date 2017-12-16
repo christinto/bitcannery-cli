@@ -188,7 +188,7 @@ async function decryptData(
     const encryptedForBob = aesDecrypt(
       prefixUtils.trim0x(encryptedLegacyData),
       recoveredAesKey,
-      aesCounter,
+      Buffer.from(prefixUtils.trim0x(aesCounter), 'hex'),
     )
 
     let legacyData = await ecDecrypt(packingUtils.unpackElliptic(encryptedForBob), bobPrivateKey)
@@ -201,7 +201,7 @@ async function decryptData(
 
     return legacyData
   } catch (e) {
-    console.log('[ERROR!] failed to decrypt data')
+    console.log('[ERROR!] failed to decrypt data\n')
     return null
   }
 }
