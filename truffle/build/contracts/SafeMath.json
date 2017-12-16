@@ -1,15 +1,15 @@
 {
   "contractName": "SafeMath",
   "abi": [],
-  "bytecode": "0x60606040523415600e57600080fd5b603580601b6000396000f3006060604052600080fd00a165627a7a723058205570278ab231f392f81bad740f039c51252888f3b2fdc4fba0b2ceddd82c06340029",
-  "deployedBytecode": "0x6060604052600080fd00a165627a7a723058205570278ab231f392f81bad740f039c51252888f3b2fdc4fba0b2ceddd82c06340029",
+  "bytecode": "0x60606040523415600e57600080fd5b603580601b6000396000f3006060604052600080fd00a165627a7a72305820e8e073e7030da1259b355e16931994091114b79bd6328a370731c060763c70630029",
+  "deployedBytecode": "0x6060604052600080fd00a165627a7a72305820e8e073e7030da1259b355e16931994091114b79bd6328a370731c060763c70630029",
   "sourceMap": "213:682:3:-;;;;;;;;;;;;;;;;;",
   "deployedSourceMap": "213:682:3:-;;;;;",
   "source": "// Taken from github.com/OpenZeppelin/zeppelin-solidity/blob/647fc13/contracts/math/SafeMath.sol\n\npragma solidity 0.4.18;\n\n/**\n * @title SafeMath\n * @dev Math operations with safety checks that throw on error\n */\nlibrary SafeMath {\n  function mul(uint256 a, uint256 b) internal pure returns (uint256) {\n    uint256 c = a * b;\n    assert(a == 0 || c / a == b);\n    return c;\n  }\n\n  function div(uint256 a, uint256 b) internal pure returns (uint256) {\n    // assert(b > 0); // Solidity automatically throws when dividing by 0\n    uint256 c = a / b;\n    // assert(a == b * c + a % b); // There is no case in which this doesn't hold\n    return c;\n  }\n\n  function sub(uint256 a, uint256 b) internal pure returns (uint256) {\n    assert(b <= a);\n    return a - b;\n  }\n\n  function add(uint256 a, uint256 b) internal pure returns (uint256) {\n    uint256 c = a + b;\n    assert(c >= a);\n    return c;\n  }\n}\n",
-  "sourcePath": "/Users/sam/dev/projects/crypto-legacy/crypto-legacy/truffle/contracts/SafeMath.sol",
+  "sourcePath": "/Users/eugene/dev/crypto-legacy-internal/truffle/contracts/SafeMath.sol",
   "ast": {
     "attributes": {
-      "absolutePath": "/Users/sam/dev/projects/crypto-legacy/crypto-legacy/truffle/contracts/SafeMath.sol",
+      "absolutePath": "/Users/eugene/dev/crypto-legacy-internal/truffle/contracts/SafeMath.sol",
       "exportedSymbols": {
         "SafeMath": [
           1320
@@ -1318,5 +1318,5 @@
   },
   "networks": {},
   "schemaVersion": "1.0.1",
-  "updatedAt": "2017-12-14T15:10:48.941Z"
+  "updatedAt": "2017-12-16T14:37:44.234Z"
 }
