@@ -29,7 +29,7 @@ export async function handler(argv) {
   const instance = await LegacyContract.at(argv.contract)
 
   // TODO: check that account is contract owner
-  console.log(`You're identified as a contract owner.`)
+  console.error(`You're identified as a contract owner.`)
 
   // TODO: check contract state
 
@@ -43,8 +43,8 @@ export async function handler(argv) {
 
   const isCheckInOnTime = moment().isSameOrBefore(nextCheckInDueDate)
   if (!isCheckInOnTime) {
-    console.log(`Sorry, you have missed checkin due date`)
-    console.log(`Bob now can decrypt the legacy`)
+    console.error(`Sorry, you have missed checkin due date`)
+    console.error(`Bob now can decrypt the legacy`)
     return
   }
 
@@ -66,9 +66,9 @@ export async function handler(argv) {
     }),
   )
 
-  console.log(`Sending keepers fees...`)
-  console.log(`Done.`)
-  console.log(`See you next time!`)
+  console.error(`Sending keepers fees...`)
+  console.error(`Done.`)
+  console.error(`See you next time!`)
   const nextCheckUnixTime = Math.ceil(Date.now() / 1000) + checkInInterval.toNumber()
-  console.log(`Next checkin: ${moment.unix(nextCheckUnixTime)}`)
+  console.error(`Next checkin: ${moment.unix(nextCheckUnixTime)}`)
 }

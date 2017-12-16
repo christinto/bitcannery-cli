@@ -29,11 +29,11 @@ export async function handler(argv) {
   // TODO: in case when supplied keys number is small
   // in comparison with keepers number display a warning
   if (state !== States.CallForKeys) {
-    console.log(`Contract can't be decrypted in this state`)
+    console.error(`Contract can't be decrypted in this state`)
     return
   }
 
-  console.log(`Welcome to KeeperNet v2! Contract is "ready for decryption" status.`)
+  console.error(`Welcome to KeeperNet v2! Contract is "ready for decryption" status.`)
 
   let suppliedKeyParts = []
   for (let i = 0; i < suppliedKeyPartsCount; ++i) {
@@ -57,12 +57,12 @@ export async function handler(argv) {
   )
 
   if (legacy === null) {
-    console.log(`Failed to decrypt the legacy.`)
-    console.log(`Please make sure that keepers supplied required number of keys`)
-    console.log(`for decryption and double check your private key.`)
+    console.error(`Failed to decrypt the legacy.`)
+    console.error(`Please make sure that keepers supplied required number of keys`)
+    console.error(`for decryption and double check your private key.`)
     return
   }
 
-  console.log('\nTrying to decrypt...')
-  console.log(Buffer.from(legacy.substring(2), 'hex').toString('utf8'))
+  console.error('\nTrying to decrypt...')
+  console.error(Buffer.from(legacy.substring(2), 'hex').toString('utf8'))
 }

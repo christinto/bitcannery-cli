@@ -35,14 +35,14 @@ export async function handler(argv) {
   console.error(`Keeper config:`, sanitizeKeeperConfig(keeperConfig))
 
   const [LegacyContract, account] = [await getContractClass(), await unlockAccount(true)]
-  console.log(`Using account: ${account}`)
+  console.error(`Using account: ${account}`)
 
   const instance = await LegacyContract.at(argv.contract)
   while (true) {
     try {
       await checkContract(instance, account)
     } catch (err) {
-      console.log(err.stack)
+      console.error(err.stack)
     }
     await delay(1000)
   }
@@ -50,7 +50,7 @@ export async function handler(argv) {
 
 async function checkContract(contract, account) {
   const state = await contract.state()
-  // console.log(`Contract state: ${States.stringify(state)}`)
+  // console.error(`Contract state: ${States.stringify(state)}`)
   switch (state.toNumber()) {
     case States.CallForKeepers: {
       return handleCallForKeepersState(contract, account)

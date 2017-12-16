@@ -28,25 +28,25 @@ export async function handler(argv) {
     (await instance.lastOwnerCheckInAt()).toNumber(),
   ]
 
-  console.log()
-  console.log('Contract address: ', argv.contract_id)
-  console.log('Owner:', owner)
-  console.log('Contract state:', stateToString(state))
+  console.error()
+  console.error('Contract address: ', argv.contract_id)
+  console.error('Owner:', owner)
+  console.error('Contract state:', stateToString(state))
 
   if (state === States.CallForKeepers) {
     const numProposals = await instance.getNumProposals()
-    console.log(`Number of keepeing proposals: ${numProposals}`)
+    console.error(`Number of keepeing proposals: ${numProposals}`)
   } else {
     const [numKeepers, totalKeepingFee] = [
       await instance.getNumKeepers(),
       await instance.totalKeepingFee(),
     ]
     const totalKeepingFeeEth = getWeb3().fromWei(totalKeepingFee, 'ether')
-    console.log(`Number of keepers: ${numKeepers}`)
-    console.log(`Combined keepers fee: ${totalKeepingFeeEth} ETH`)
+    console.error(`Number of keepers: ${numKeepers}`)
+    console.error(`Combined keepers fee: ${totalKeepingFeeEth} ETH`)
   }
 
-  console.log(
+  console.error(
     'Check-in intreval:',
     moment()
       .add(checkInIntervalInSec, 's')
@@ -54,7 +54,7 @@ export async function handler(argv) {
   )
 
   if (state === States.Active) {
-    console.log(
+    console.error(
       'The next check-in:',
       moment(lastOwnerCheckInAt * 1000)
         .add(checkInIntervalInSec, 's')

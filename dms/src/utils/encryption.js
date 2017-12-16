@@ -201,7 +201,7 @@ async function decryptData(
 
     return legacyData
   } catch (e) {
-    console.log('[ERROR!] failed to decrypt data\n')
+    console.error('[ERROR!] failed to decrypt data\n')
     return null
   }
 }

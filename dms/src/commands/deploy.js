@@ -25,28 +25,28 @@ export function yargsBuilder(yargs) {
 }
 
 export async function handler() {
-  console.log('Welcome to KeeperNet v2! Geth Ethereum client is detected.')
+  console.error('Welcome to KeeperNet v2! Geth Ethereum client is detected.')
 
   const address = await unlockAccount()
-  console.log(`Address ${address} will be`)
-  console.log(`used to create a new contract.`)
-  console.log(`Generated Bob's private key... (you must give it to Bob)`)
+  console.error(`Address ${address} will be`)
+  console.error(`used to create a new contract.`)
+  console.error(`Generated Bob's private key... (you must give it to Bob)`)
 
   const {privateKey, publicKey} = generateKeyPair()
 
-  console.log(privateKey, '\n')
-  console.log(`Check-in every 5 min`)
-  console.log(`Your contract will be secured by 2 keepers`)
-  console.log(`Publishing a new contract...`)
+  console.error(privateKey, '\n')
+  console.error(`Check-in every 5 min`)
+  console.error(`Your contract will be secured by 2 keepers`)
+  console.error(`Publishing a new contract...`)
 
   const LegacyContract = await getContractClass()
 
   // const instance = await LegacyContract.at('0x0acaae5009e4b5431e575aa00985df045dd4acad')
   const instance = await LegacyContract.new(1 * 60 * 60, {from: address, gas: GAS_HARD_LIMIT})
 
-  console.log(`Contract is published.`)
-  console.log(`Contract address is ${instance.address}`)
-  console.log(`System is calling for keepers, this might take some time...`)
+  console.error(`Contract is published.`)
+  console.error(`Contract address is ${instance.address}`)
+  console.error(`System is calling for keepers, this might take some time...`)
 
   let numKeepersProposals = (await instance.getNumProposals()).toNumber()
   let currentKeepersProposals = numKeepersProposals
@@ -54,7 +54,7 @@ export async function handler() {
   while (numKeepersProposals < NUM_KEEPERS) {
     numKeepersProposals = (await instance.getNumProposals()).toNumber()
     if (numKeepersProposals > currentKeepersProposals) {
-      console.log(`${numKeepersProposals} keepers have joined...`)
+      console.error(`${numKeepersProposals} keepers have joined...`)
       currentKeepersProposals = numKeepersProposals
     }
     if (numKeepersProposals < NUM_KEEPERS) {
@@ -62,7 +62,7 @@ export async function handler() {
     }
   }
 
-  console.log(`You have enough keepers now. Do you want to activate the contract?`)
+  console.error(`You have enough keepers now. Do you want to activate the contract?`)
 
   const selectedProposalIndices = [0, 1] // TODO: remove hardcode
 
@@ -80,8 +80,8 @@ export async function handler() {
   const keeperPublicKeys = selectedProposals.map(p => p.publicKey)
   const numKeepersToRecover = Math.max(Math.floor(selectedProposals.length * 2 / 3), 2)
 
-  console.log(`keeperPublicKeys:`, keeperPublicKeys)
-  console.log(`numKeepersToRecover:`, numKeepersToRecover)
+  console.error(`keeperPublicKeys:`, keeperPublicKeys)
+  console.error(`numKeepersToRecover:`, numKeepersToRecover)
 
   const encryptionResult = await encryptData(
     '0x' + Buffer.from('test message').toString('hex'),
@@ -90,7 +90,7 @@ export async function handler() {
     numKeepersToRecover,
   )
 
-  console.log('encryptionResult:', encryptionResult)
+  console.error('encryptionResult:', encryptionResult)
 
   console.error(`Activating contract...`)
 
