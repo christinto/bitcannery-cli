@@ -21,7 +21,7 @@ export const persistentConfig = new Conf({
   },
 })
 
-console.error(`Using config file: ${persistentConfig.path}`)
+console.error(`Using config file: ${persistentConfig.path}\n`)
 
 const config = persistentConfig.store
 overrideFromEnv(config, [])
