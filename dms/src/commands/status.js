@@ -11,7 +11,7 @@ export function yargsBuilder(yargs) {
       '$0 status -c 0xf455c170ea2c42e0510a3e50625775efec89962e',
       'Display the status of given legacy contract',
     )
-    .alias('c', 'contract_id')
+    .alias('c', 'contract')
     .nargs('c', 1)
     .describe('c', 'Specify the legacy contract')
     .demandOption(['c'])
@@ -19,7 +19,7 @@ export function yargsBuilder(yargs) {
 
 export async function handler(argv) {
   const LegacyContract = await getContractClass()
-  const instance = await LegacyContract.at(argv.contract_id)
+  const instance = await LegacyContract.at(argv.contract)
 
   const [owner, state, checkInIntervalInSec, lastOwnerCheckInAt] = [
     await instance.owner(),
