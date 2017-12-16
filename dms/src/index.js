@@ -1,6 +1,6 @@
 import yargs from 'yargs'
 
-const commandNames = ['status', 'deploy', 'keeper']
+const commandNames = ['status', 'deploy', 'keeper', 'checkin']
 
 let commands = {}
 for (let commandName of commandNames) {
