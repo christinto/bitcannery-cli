@@ -31,7 +31,7 @@ There are 9 accounts pre-generated on local development network. We'll use first
 
 Application uses config file to store configuration (see [here](dms/src/config.js#L13) for default configuration). Config files are stored in an OS-dependent location, which is printed when app starts.
 
-Application supports having multiple configurations on the same machine. You can specify which config to use by setting `CONFIG_NAME` environment variable. We'll use this feature to run clients for Alice and three keepers whithout need to use multiple machines.
+Application supports having multiple configurations per machine. You can specify which config to use by setting `CONFIG_NAME` environment variable. We'll use this feature to run clients for Alice and three keepers on the same machine.
 
 Let's setup three configurations for different keepers:
 
