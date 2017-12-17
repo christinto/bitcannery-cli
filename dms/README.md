@@ -43,9 +43,7 @@ Using config file: ~/Library/Preferences/dms-nodejs/keeper-1.json
 
 This will generate `keeper-1.json` config file containing default configuration, and also containing a unique keeper keypair. Since we'll use account with index `0` for Alice, let's edit `keeper-1.json` and change account index to `1`:
 
-Change `accountIndex` in json for `keeper-1` to 1
-
-```json
+```text
 $ vim ~/Library/Preferences/dms-nodejs/keeper-1.json
 {
   "rpcConnection": "http://localhost:8545",
