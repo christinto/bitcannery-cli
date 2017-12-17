@@ -1,7 +1,8 @@
 import moment from 'moment'
 import getWeb3 from '../utils/get-web3'
 import getContractClass from '../utils/get-contract-class'
-const {States, stateToString} = require('../utils/contract-api')
+import {States, stateToString} from '../utils/contract-api'
+import {formatWei} from '../utils/format'
 
 export const description = 'Display the status of given legacy contract'
 
@@ -18,6 +19,7 @@ export function yargsBuilder(yargs) {
 }
 
 export async function handler(argv) {
+  // TODO: ensure json rpc running and there is legacy contract w/ address
   const LegacyContract = await getContractClass()
   const instance = await LegacyContract.at(argv.contract)
 
@@ -29,7 +31,7 @@ export async function handler(argv) {
   ]
 
   console.error()
-  console.error('Contract address: ', argv.contract_id)
+  console.error('Contract address: ', argv.contract)
   console.error('Owner:', owner)
   console.error('Contract state:', stateToString(state))
 
@@ -41,9 +43,8 @@ export async function handler(argv) {
       await instance.getNumKeepers(),
       await instance.totalKeepingFee(),
     ]
-    const totalKeepingFeeEth = getWeb3().fromWei(totalKeepingFee, 'ether')
     console.error(`Number of keepers: ${numKeepers}`)
-    console.error(`Combined keepers fee: ${totalKeepingFeeEth} ETH`)
+    console.error(`Combined keepers fee: ${formatWei(totalKeepingFee)}`)
   }
 
   console.error(

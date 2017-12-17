@@ -16,7 +16,7 @@ export function yargsBuilder(yargs) {
 }
 
 export async function handler(argv) {
-  // TODO: ensure json rpc running and there is leagcy contract w/ address
+  // TODO: ensure json rpc running and there is legacy contract w/ address
   const LegacyContract = getContractClass()
   const instance = await LegacyContract.at(argv.contract)
 
@@ -58,11 +58,11 @@ export async function handler(argv) {
 
   if (legacy === null) {
     console.error(`Failed to decrypt the legacy.`)
-    console.error(`Please make sure that keepers supplied required number of keys`)
-    console.error(`for decryption and double check your private key.`)
+    console.error(`Please make sure that keepers supplied required for decryption`)
+    console.error(`number of keys and double check your private key.`)
     return
   }
 
-  console.error('\nTrying to decrypt...')
+  console.error('\nTrying to decrypt...\n')
   console.error(Buffer.from(legacy.substring(2), 'hex').toString('utf8'))
 }

@@ -148,6 +148,7 @@ async function handleActiveState(contract, account) {
   ]
 
   const now = Math.floor(Date.now() / 1000)
+  // const now = (await contract.debugTimestamp()).toNumber() + 60
   const passedSinceOwnerCheckIn = now - lastOwnerCheckInAt
 
   if (passedSinceOwnerCheckIn <= checkInInterval && keeper.lastCheckInAt >= lastOwnerCheckInAt) {

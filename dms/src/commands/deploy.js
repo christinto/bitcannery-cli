@@ -1,3 +1,4 @@
+import fs from 'fs'
 import assert from 'assert'
 import yn from 'yn'
 import readlineSync from 'readline-sync'
@@ -9,23 +10,28 @@ import {States, assembleProposalStruct} from '../utils/contract-api'
 import {formatWei} from '../utils/format'
 import tx from '../utils/tx'
 
-function delay(ms) {
-  return new Promise(resolve => setTimeout(() => resolve(), ms))
-}
-
 // Fail if tx is going to take more gas than this.
 //
 const GAS_HARD_LIMIT = 4700000
-const NUM_KEEPERS = 2
+const NUM_KEEPERS = 3
+const CHECKIN_INTERVAL_SEC = 1 * 60
 
 export const description = 'Deploy new legacy contract to blockchain'
 
 export function yargsBuilder(yargs) {
   return yargs
+    .example('$0 deploy -f <path-to-file>', 'Deploy new legacy contract')
+    .alias('f', 'file')
+    .nargs('f', 1)
+    .describe('f', 'Specify file to encrypt')
+    .demandOption(['f'])
 }
 
-export async function handler() {
-  console.error('Welcome to KeeperNet v2! Geth Ethereum client is detected.')
+export async function handler(argv) {
+  console.error('Welcome to KeeperNet v2!')
+
+  const fileContent = await readFile(argv.file)
+  const legacyData = '0x' + fileContent.toString('hex')
 
   const address = await unlockAccount()
   console.error(`Address ${address} will be`)
@@ -35,14 +41,15 @@ export async function handler() {
   const {privateKey, publicKey} = generateKeyPair()
 
   console.error(privateKey, '\n')
-  console.error(`Check-in every 5 min`)
-  console.error(`Your contract will be secured by 2 keepers`)
+  console.error(`Check-in every ${CHECKIN_INTERVAL_SEC / 60} minutes`)
+  console.error(`Your contract will be secured by ${NUM_KEEPERS} keepers`)
   console.error(`Publishing a new contract...`)
 
   const LegacyContract = await getContractClass()
-
-  // const instance = await LegacyContract.at('0x0acaae5009e4b5431e575aa00985df045dd4acad')
-  const instance = await LegacyContract.new(1 * 60 * 60, {from: address, gas: GAS_HARD_LIMIT})
+  const instance = await LegacyContract.new(CHECKIN_INTERVAL_SEC, {
+    from: address,
+    gas: GAS_HARD_LIMIT,
+  })
 
   console.error(`Contract is published.`)
   console.error(`Contract address is ${instance.address}`)
@@ -64,7 +71,10 @@ export async function handler() {
 
   console.error(`You have enough keepers now. Do you want to activate the contract?`)
 
-  const selectedProposalIndices = [0, 1] // TODO: remove hardcode
+  let selectedProposalIndices = []
+  for (let i = 0; i < NUM_KEEPERS; ++i) {
+    selectedProposalIndices.push(i)
+  }
 
   const activationPrice = await instance.calculateActivationPrice(selectedProposalIndices)
   const doYouWantToPay = readlineSync.question(
@@ -80,17 +90,17 @@ export async function handler() {
   const keeperPublicKeys = selectedProposals.map(p => p.publicKey)
   const numKeepersToRecover = Math.max(Math.floor(selectedProposals.length * 2 / 3), 2)
 
-  console.error(`keeperPublicKeys:`, keeperPublicKeys)
-  console.error(`numKeepersToRecover:`, numKeepersToRecover)
+  // console.error(`keeperPublicKeys:`, keeperPublicKeys)
+  // console.error(`numKeepersToRecover:`, numKeepersToRecover)
 
   const encryptionResult = await encryptData(
-    '0x' + Buffer.from('test message').toString('hex'),
+    legacyData,
     publicKey,
     keeperPublicKeys,
     numKeepersToRecover,
   )
 
-  console.error('encryptionResult:', encryptionResult)
+  // console.error('encryptionResult:', encryptionResult)
 
   console.error(`Activating contract...`)
 
@@ -121,4 +131,20 @@ async function fetchKeeperProposals(instance) {
   const numProposals = await instance.getNumProposals()
   const promises = new Array(+numProposals).fill(0).map((_, i) => instance.keeperProposals(i))
   return (await Promise.all(promises)).map(rawProposal => assembleProposalStruct(rawProposal))
+}
+
+async function readFile(path) {
+  return new Promise((resolve, reject) => {
+    fs.readFile(path, (err, data) => {
+      if (err) {
+        reject(err)
+      } else {
+        resolve(data)
+      }
+    })
+  })
+}
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(() => resolve(), ms))
 }
