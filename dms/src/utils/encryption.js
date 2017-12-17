@@ -155,7 +155,14 @@ async function encryptData(legacyData, bobPublicKey, keeperPublicKeys, numKeeper
     keyPartHashes[i] = sha3(keeperSecret)
   }
 
-  const encryptedKeyParts = packingUtils.pack(encryptedKeyPartsArray)
+  let encryptedKeyParts = packingUtils.pack(encryptedKeyPartsArray)
+
+  // workaround because of web3/solidity bug with losing last half byte if
+  // encryptedKeyParts length is odd
+  // TODO: perform investigation
+  if (encryptedKeyParts.length % 2 !== 0) {
+    encryptedKeyParts = encryptedKeyParts + '0'
+  }
 
   return {
     encryptedKeyParts,
