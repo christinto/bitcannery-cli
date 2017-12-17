@@ -40,7 +40,7 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
   }
 
   modifier activeKeepersOnly() {
-    require(activeKeepers[msg.sender].lastCheckInAt > 0);
+    require(isActiveKeeper(msg.sender));
     _;
   }
 
@@ -61,7 +61,7 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
 
   struct EncryptedData {
     bytes encryptedData;
-    uint aesCounter;
+    bytes16 aesCounter;
     bytes32 dataHash; // sha-3 hash
     bytes encryptedKeyParts; // packed array of key parts
     bytes[] suppliedKeyParts;
@@ -88,7 +88,7 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
   address[] public activeKeepersAddresses;
 
   // Sum of keeping fees of all active Keepers.
-  uint totalKeepingFee;
+  uint public totalKeepingFee;
 
   // We need this because current version of Solidity doesn't support non-integer numbers.
   // We set it to be equal to number of wei in eth to make sure we transfer keeping fee with
@@ -96,7 +96,7 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
   uint public constant KEEPING_FEE_ROUNDING_MULT = 1 ether;
 
   // Don't allow owner to specify check-in interval less than this when creating a new contract.
-  uint public constant MINIMUM_CHECK_IN_INTERVAL = 1 hours;
+  uint public constant MINIMUM_CHECK_IN_INTERVAL = 1 minutes;
 
 
   // Called by the person who possesses the data they wish to transfer.
@@ -123,23 +123,31 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
   }
 
 
-  function getNumProposals() external constant returns (uint) {
+  function getNumProposals() external view returns (uint) {
     return keeperProposals.length;
   }
 
 
-  function getNumKeepers() external constant returns (uint) {
+  function getNumKeepers() external view returns (uint) {
     return activeKeepersAddresses.length;
   }
 
 
-  function getNumSuppliedKeyParts() external constant returns (uint) {
+  function getNumSuppliedKeyParts() external view returns (uint) {
     return encryptedData.suppliedKeyParts.length;
   }
 
 
-  function getSuppliedKeyPart(uint index) external constant returns (bytes) {
+  function getSuppliedKeyPart(uint index) external view returns (bytes) {
     return encryptedData.suppliedKeyParts[index];
+  }
+
+  function isActiveKeeper(address addr) public view returns (bool) {
+    return activeKeepers[addr].lastCheckInAt > 0;
+  }
+
+  function didSendProposal(address addr) public view returns (bool) {
+    return proposedKeeperFlags[addr];
   }
 
 
@@ -149,7 +157,7 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     atState(States.CallForKeepers)
   {
     require(msg.sender != owner);
-    require(!proposedKeeperFlags[msg.sender]);
+    require(!didSendProposal(msg.sender));
     require(publicKey.length <= 128);
 
     bytes32 publicKeyHash = keccak256(publicKey);
@@ -165,6 +173,20 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     proposedPublicKeyHashes[publicKeyHash] = true;
   }
 
+  // Calculates how much would it cost the owner to activate contract with given Keepers.
+  //
+  function calculateActivationPrice(uint[] selectedProposalIndices) public view returns (uint) {
+    uint _totalKeepingFee = 0;
+
+    for (uint i = 0; i < selectedProposalIndices.length; i++) {
+      uint proposalIndex = selectedProposalIndices[i];
+      KeeperProposal storage proposal = keeperProposals[proposalIndex];
+      _totalKeepingFee = SafeMath.add(_totalKeepingFee, proposal.keepingFee);
+    }
+
+    return _totalKeepingFee;
+  }
+
 
   // Called by owner to accept selected proposals and activate the contract.
   //
@@ -174,7 +196,7 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     bytes encryptedKeyParts,
     bytes _encryptedData,
     bytes32 dataHash,
-    uint aesCounter
+    bytes16 aesCounter
   ) payable external
     ownerOnly()
     atState(States.CallForKeepers)
@@ -245,15 +267,35 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
   }
 
 
+  // Calculates approximate price of a check-in, given that it will be performed right now.
+  // Actual price may differ because
+  //
+  function calculateApproximateCheckInPrice() public view returns (uint) {
+    uint keepingFeeMult = calculateKeepingFeeMult();
+    uint requiredBalance = 0;
+
+    for (uint i = 0; i < activeKeepersAddresses.length; i++) {
+      ActiveKeeper storage keeper = activeKeepers[activeKeepersAddresses[i]];
+      uint balanceToAdd = SafeMath.mul(keeper.keepingFee, keepingFeeMult) / KEEPING_FEE_ROUNDING_MULT;
+      uint newKeeperBalance = SafeMath.add(keeper.balance, balanceToAdd);
+      requiredBalance = SafeMath.add(requiredBalance, newKeeperBalance);
+    }
+
+    requiredBalance = SafeMath.add(requiredBalance, totalKeepingFee);
+    uint balance = this.balance;
+
+    if (balance >= requiredBalance) {
+      return 0;
+    } else {
+      return requiredBalance - balance;
+    }
+  }
+
+
   // Returns: excess balance that can be transferred back to owner.
   //
   function creditKeepers(bool prepayOneKeepingPeriodUpfront) internal returns (uint) {
-    uint timestamp = getBlockTimestamp();
-
-    uint timeSinceLastOwnerCheckIn = SafeMath.sub(timestamp, lastOwnerCheckInAt);
-    require(timeSinceLastOwnerCheckIn <= checkInInterval);
-
-    uint keepingFeeMult = SafeMath.mul(KEEPING_FEE_ROUNDING_MULT, timeSinceLastOwnerCheckIn) / checkInInterval;
+    uint keepingFeeMult = calculateKeepingFeeMult();
     uint requiredBalance = 0;
 
     for (uint i = 0; i < activeKeepersAddresses.length; i++) {
@@ -271,6 +313,19 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
 
     require(balance >= requiredBalance);
     return balance - requiredBalance;
+  }
+
+
+  function calculateKeepingFeeMult() internal view returns (uint) {
+    uint timeSinceLastOwnerCheckIn = SafeMath.sub(getBlockTimestamp(), lastOwnerCheckInAt);
+    require(timeSinceLastOwnerCheckIn <= checkInInterval);
+
+    timeSinceLastOwnerCheckIn = ceil(timeSinceLastOwnerCheckIn, 600); // ceil to 10 minutes
+    if (timeSinceLastOwnerCheckIn > checkInInterval) {
+      timeSinceLastOwnerCheckIn = checkInInterval;
+    }
+
+    return SafeMath.mul(KEEPING_FEE_ROUNDING_MULT, timeSinceLastOwnerCheckIn) / checkInInterval;
   }
 
 
@@ -318,7 +373,8 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     encryptedData.suppliedKeyParts.push(keyPart);
     keeper.keyPartSupplied = true;
 
-    uint toBeTransferred = keeper.balance;
+    // Include one-period keeping fee that was held by contract in advance.
+    uint toBeTransferred = SafeMath.add(keeper.balance, keeper.keepingFee);
     keeper.balance = 0;
 
     if (toBeTransferred > 0) {
@@ -373,13 +429,22 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     }
   }
 
+
   // We can rely on the value of now (block.timestamp) for our purposes, as the consensus
   // rule is that a block's timestamp must be 1) more than the parent's block timestamp;
   // and 2) less than the current wall clock time. See:
   // https://github.com/ethereum/go-ethereum/blob/885c13c/consensus/ethash/consensus.go#L223
   //
-  function getBlockTimestamp() internal constant returns (uint) {
+  function getBlockTimestamp() internal view returns (uint) {
     return now;
+  }
+
+
+  // See: https://stackoverflow.com/a/2745086/804678
+  //
+  function ceil(uint x, uint y) internal pure returns (uint) {
+    if (x == 0) return 0;
+    return (1 + ((x - 1) / y)) * y;
   }
 
 }

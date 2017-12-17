@@ -10,12 +10,10 @@ const {web3,
   getAccountBalances,
   getActiveKeepersBalances,
   stringify,
+  ceil,
   sum,
   bigSum} = require('./helpers')
 
-//
-// TODO: test final reward calculations and transfers
-//
 
 contract('CryptoLegacy, balance calculations:', (accounts) => {
 
@@ -95,8 +93,8 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
      `enough funds to pay all Keepers their current balances and keeping fee for the next ` +
      `check-in interval`, async () => {
 
-    const checkInIntervalFraction = 1/2
-    const timePassedSinceContractActive = Math.floor(checkInIntervalSec * checkInIntervalFraction)
+    const timePassedSinceContractActive = 55 * 60
+    const checkInIntervalFraction = ceil(timePassedSinceContractActive, 600) / checkInIntervalSec
 
     await assertTxSucceeds(contract.increaseTimeBy(timePassedSinceContractActive),
       `increasing time`)
@@ -115,7 +113,7 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
     assert(requiredContractBalanceIncrease > 0,
       `expected required contract balance increase to be positive`)
 
-    // doesn't Allow Alice to check in if she provdes less funds than expected
+    // doesn't allow Alice to check in if she provdes less funds than expected
 
     await assertTxFails(
       contract.ownerCheckIn({from: addr.Alice, value: 0}),
@@ -172,8 +170,8 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
 
     const preCheckInKeepersTotalBalance = bigSum(preCheckInKeeperBalances)
 
-    const checkInIntervalFraction = 1/4
-    const timePassedSinceLastCheckIn = Math.floor(checkInIntervalSec * checkInIntervalFraction)
+    const timePassedSinceLastCheckIn = 23 * 60
+    const checkInIntervalFraction = ceil(timePassedSinceLastCheckIn, 600) / checkInIntervalSec
 
     const expectedPostCheckInKeeperBalances = [
       preCheckInKeeperBalances[0].plus(Math.floor(keepingFees[1] * checkInIntervalFraction)),
@@ -280,8 +278,8 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
   it(`cancelling a contract credits all Keepers as if it was a check-in, and sends all ` +
      `excess funds left in the contract's wallet to Alice`, async () => {
 
-    const checkInIntervalFraction = 1/2
-    const timePassedSinceLastCheckIn = Math.floor(checkInIntervalSec * checkInIntervalFraction)
+    const timePassedSinceLastCheckIn = 51 * 60
+    const checkInIntervalFraction = ceil(timePassedSinceLastCheckIn, 600) / checkInIntervalSec
 
     const expectedKeeperBalanceIncreases = [
       Math.floor(checkInIntervalFraction * keepingFees[1]),

@@ -10,19 +10,19 @@ contract CryptoLegacyDebug is CryptoLegacy {
 
   // Time
 
-  uint private debugTimestamp = 42;
+  uint public debugTimestamp = 42;
 
   function increaseTimeBy(uint sec) external {
     debugTimestamp += sec;
   }
 
-  function getBlockTimestamp() internal constant returns (uint) {
+  function getBlockTimestamp() internal view returns (uint) {
     return debugTimestamp;
   }
 
   // Version
 
-  uint private debugVersion;
+  uint public debugVersion;
 
   function getVersion() public view returns (uint) {
     if (debugVersion == 0) {

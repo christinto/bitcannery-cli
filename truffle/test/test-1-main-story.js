@@ -4,6 +4,7 @@ const CryptoLegacy = artifacts.require('./CryptoLegacyDebug.sol')
 const {assertTxSucceeds,
   assertTxFails,
   getAccountBalance,
+  getAccountBalances,
   getActiveKeepersBalances,
   prepareLegacyData,
   decryptLegacy,
@@ -145,7 +146,7 @@ contract('CryptoLegacy', (accounts) => {
     await assertTxFails(contract.supplyKey('arara', {from: addr.keeper_2}))
   })
 
-  it(`accepted keeper couldn't send not valid key part`, async () => {
+  it(`accepted keeper couldn't send invalid key part`, async () => {
     await assertTxFails(contract.supplyKey('ururu', {from: addr.keeper_1}))
   })
 
@@ -163,15 +164,16 @@ contract('CryptoLegacy', (accounts) => {
 
     const expectedKeeperAcctBalanceAfter = keeperAcctBalanceBefore
       .plus(keeperBalanceBefore)
+      .plus(keepingFees.keeper_1)
       .minus(txPriceWei)
 
     const keeperAcctBalanceAfter = await getAccountBalance(keeperToGetReward)
     const [keeperBalanceAfter] = await getActiveKeepersBalances(contract, [keeperToGetReward])
 
-    assert.equal(keeperAcctBalanceAfter.toString(), expectedKeeperAcctBalanceAfter.toString(),
+    assert.bignumEqual(keeperAcctBalanceAfter, expectedKeeperAcctBalanceAfter,
       `keeper account balance`)
 
-    assert.equal(keeperBalanceAfter.toString(), '0',
+    assert.bignumEqual(keeperBalanceAfter, '0',
       `keeper balance should become zero`)
   })
 
@@ -189,16 +191,61 @@ contract('CryptoLegacy', (accounts) => {
 
     const expectedKeeperAcctBalanceAfter = keeperAcctBalanceBefore
       .plus(keeperBalanceBefore)
+      .plus(keepingFees.keeper_3)
       .minus(txPriceWei)
 
     const keeperAcctBalanceAfter = await getAccountBalance(keeperToGetReward)
     const [keeperBalanceAfter] = await getActiveKeepersBalances(contract, [keeperToGetReward])
 
-    assert.equal(keeperAcctBalanceAfter.toString(), expectedKeeperAcctBalanceAfter.toString(),
+    assert.bignumEqual(keeperAcctBalanceAfter, expectedKeeperAcctBalanceAfter,
       `keeper account balance`)
 
-    assert.equal(keeperBalanceAfter.toString(), '0',
+    assert.bignumEqual(keeperBalanceAfter, '0',
       `keeper balance should become zero`)
+  })
+
+  it(`when all Keepers supply their key parts, contract balance becomes zero`, async () => {
+    const contractBalance = await getAccountBalance(contract.address)
+    assert.bignumEqual(contractBalance, 0)
+  })
+
+  it(`doesn't allow a Keeper to supply valid key part twice`, async () => {
+    const {encryptedKeyParts} = assembleEncryptedDataStruct(await contract.encryptedData())
+    const [decryptedKeyPart_1, decryptedKeyPart_3] = [
+      await decryptKeyPart(encryptedKeyParts, 0, 0),
+      await decryptKeyPart(encryptedKeyParts, 1, 2),
+    ]
+    await assertTxFails(contract.supplyKey(decryptedKeyPart_1, {from: addr.keeper_1}))
+    await assertTxFails(contract.supplyKey(decryptedKeyPart_3, {from: addr.keeper_3}))
+  })
+
+  it(`checking in after supplying key part has no effect`, async () => {
+    const [preCheckInBalanceContract, ...preCheckInKeeperWalletBalances] =
+      await getAccountBalances(contract.address, addr.keeper_1, addr.keeper_3)
+
+    const txPrices = [
+      await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper_1})),
+      await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper_3})),
+    ]
+    .map(r => r.txPriceWei)
+
+    const [postCheckInBalanceContract, ...postCheckInKeeperWalletBalances] =
+      await getAccountBalances(contract.address, addr.keeper_1, addr.keeper_3)
+
+    assert.bignumEqual(
+      postCheckInBalanceContract,
+      preCheckInBalanceContract,
+      'contract balance')
+
+    assert.bignumEqual(
+      postCheckInKeeperWalletBalances[0],
+      preCheckInKeeperWalletBalances[0].minus(txPrices[0]),
+      'first Keeper balance')
+
+    assert.bignumEqual(
+      postCheckInKeeperWalletBalances[1],
+      preCheckInKeeperWalletBalances[1].minus(txPrices[1]),
+      'second Keeper balance')
   })
 
   it(`recipient could decrypt legacy data`, async () => {

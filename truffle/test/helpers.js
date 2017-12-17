@@ -53,8 +53,8 @@ async function inspectTransaction(txResultPromise) {
   const {receipt} = txResult
   const success = receipt.status !== undefined
     ? receipt.status === '0x1' || receipt.status === 1 // Since Byzantium fork
-    : receipt.cumulativeGasUsed < tx.gas // Before Byzantium fork (current version of TestRPC)
-  const txPriceWei = new BigNumber(tx.gasPrice).times(receipt.cumulativeGasUsed)
+    : receipt.gasUsed < tx.gas // Before Byzantium fork (current version of TestRPC)
+  const txPriceWei = new BigNumber(tx.gasPrice).times(receipt.gasUsed)
   const events = txResult.logs
     .map(log => log.event ? {name: log.event, args: log.args} : null)
     .filter(x => !!x)
@@ -87,6 +87,11 @@ async function getAccountBalances(...addrs) {
 }
 
 
+function ceil(x, y) {
+  return Math.ceil(x / y) * y;
+}
+
+
 function sum(arr, accessor = (x => x)) {
   return arr.reduce((s, el) => s + accessor(el), 0)
 }
@@ -102,7 +107,7 @@ function stringify(x) {
 }
 
 
-assert.bignumEqual = function assertBalancesEqual(bal1, bal2, message) {
+assert.bignumEqual = function assertBignumEqual(bal1, bal2, message) {
   assert.equal(bal1.toString(), bal2.toString(), message)
 }
 
@@ -164,6 +169,7 @@ module.exports = {
   printEvents,
   getAccountBalance,
   getAccountBalances,
+  ceil,
   sum,
   bigSum,
   stringify,
