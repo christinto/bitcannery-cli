@@ -10,6 +10,7 @@ const SECONDS_IN_MONTH = 60 * 60 * 24 * 30
 export const persistentConfig = new Conf({
   projectName: 'dms',
   configName: env.CONFIG_NAME || 'default',
+  encryptionKey: '0x06012c8cf97bead5deae237070f9587f8e7a266d',
   defaults: {
     rpcConnection: 'http://localhost:8545',
     accountIndex: 0,
@@ -20,8 +21,6 @@ export const persistentConfig = new Conf({
     },
   },
 })
-
-console.error(`Using config file: ${persistentConfig.path}\n`)
 
 const config = persistentConfig.store
 overrideFromEnv(config, [])
