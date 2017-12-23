@@ -31,7 +31,7 @@ export async function handler(argv) {
   await runCommand(() => runKeeper())
 }
 
-// TODO: currently, if you set account index in config (e.g. using set-account-index command)
+// TODO: currently, if you set account index in config (e.g. using set-client-options command)
 // while keeper node is running, the node will still use the old account until restarted.
 
 // Don't call updateConfig more often than once in five seconds.
