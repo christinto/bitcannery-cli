@@ -18,6 +18,8 @@ export const persistentConfig = new Conf({
       maxCheckInIntervalSec: SECONDS_IN_MONTH * 365,
       keepingFeePerContractMonth: '10000000000000000', // 0.01 ether
       keypair: undefined, // {privateKey, publicKey}
+      contracts: [],
+      lastCheckedContractIndex: -1,
     },
   },
 })

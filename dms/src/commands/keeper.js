@@ -392,6 +392,7 @@ function sanitizeKeeperConfig(keeperConfig) {
       publicKey: keeperConfig.keypair.publicKey,
       privateKey: '<stripped for logs>',
     },
+    contracts: ['<stripped for logs>'],
   }
 }
 
