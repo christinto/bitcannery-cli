@@ -3,11 +3,11 @@ import yargs from 'yargs'
 const commandNames = [
   'status',
   'deploy',
-  'keeper',
   'checkin',
   'decrypt',
+  'keeper',
   'set-fee',
-  'set-account-index',
+  'set-client-options',
 ]
 
 let commands = {}
