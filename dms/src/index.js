@@ -22,4 +22,5 @@ for (let commandName of commandNames) {
   argv = argv.command(commandName, command.description, command.yargsBuilder, command.handler)
 }
 
+argv = argv.demandCommand(1, 'Please specify the command.')
 argv = argv.argv
