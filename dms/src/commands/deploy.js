@@ -44,7 +44,7 @@ async function deploy(pathToFile) {
 
   const address = await unlockAccount()
 
-  print(`Address ${address} will be used to create a new contract.\n`)
+  print(`Address ${address} will be used to create a new contract.`)
 
   const {LegacyContract, registry} = await getContractAPIs()
   const contractId = await obtainNewContractName(registry)
@@ -161,23 +161,48 @@ async function deploy(pathToFile) {
 }
 
 async function obtainNewContractName(registry) {
+  while (true) {
+    console.error()
+
+    let name = await obtainRandomName(registry)
+    const useRandomName = ynQuestion(
+      `The automatically-generated random name for this contract is "${name}". ` +
+        `Do you want to use it?`,
+    )
+    if (useRandomName) {
+      return name
+    }
+
+    console.error()
+
+    name = question.demandAnswer(
+      `Please enter name for this contract (enter "g" to generate new random name):`,
+    )
+    if (name === 'g') {
+      continue
+    }
+
+    while (!await isUnique(name, registry)) {
+      console.error()
+      name = question.demandAnswer(
+        `Unfortunately, there is already a contract with this name in the system. ` +
+          `Please enter another name (enter "g" to generate new random name):`,
+      )
+      if (name === 'g') {
+        break
+      }
+    }
+
+    if (name !== 'g') {
+      return name
+    }
+  }
+}
+
+async function obtainRandomName(registry) {
   let name = getRandomName()
   while (!await isUnique(name, registry)) {
     name = getRandomName()
-  }
-  const useRandomName = ynQuestion(
-    `The automatically-generated random name for this contract is "${name}". ` +
-      `Do you want to use it?`,
-  )
-  if (useRandomName) {
-    return name
-  }
-  name = question.demandAnswer(`Please enter name for this contract:`)
-  while (!await isUnique(name, registry)) {
-    name = question.demandAnswer(
-      `\nUnfortunately, there is already a contract with this name ` +
-        `in the system. Please enter another name:`,
-    )
   }
   return name
 }
