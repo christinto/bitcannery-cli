@@ -1,12 +1,7 @@
 pragma solidity 0.4.18;
 
 import "./SafeMath.sol";
-
-interface CryptoLegacyBaseAPI {
-  function getVersion() public view returns (uint);
-  function getOwner() public view returns (address);
-  function isAcceptingKeeperProposals() public view returns (bool);
-}
+import "./CryptoLegacyBaseAPI.sol";
 
 contract CryptoLegacy is CryptoLegacyBaseAPI {
 
@@ -116,6 +111,11 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
 
   function getOwner() public view returns (address) {
     return owner;
+  }
+
+
+  function getContinuationContractAddress() public view returns (address) {
+    return continuationContractAddress;
   }
 
 
@@ -397,6 +397,7 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     atState(States.Active)
   {
     require(continuationContractAddress == 0);
+    require(_continuationContractAddress != address(this));
 
     CryptoLegacyBaseAPI continuationContract = CryptoLegacyBaseAPI(_continuationContractAddress);
 
