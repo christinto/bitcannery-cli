@@ -10,7 +10,7 @@ import tx from '../utils/tx'
 import encryptionUtils from '../utils/encryption'
 import packingUtils from '../utils/pack'
 import delay from '../utils/delay'
-import config from '../config'
+import {config, updateConfig} from '../config'
 
 export const description = 'Run Keeper node'
 
@@ -28,11 +28,10 @@ export function yargsBuilder(yargs) {
 
 const SECONDS_IN_MONTH = 60 * 60 * 24 * 30
 
-const keeperConfig = config.keeper
 const web3 = getWeb3()
 
 export async function handler(argv) {
-  console.error(`Keeper config:`, sanitizeKeeperConfig(keeperConfig))
+  console.error(`Keeper config:`, sanitizeKeeperConfig(config.keeper))
 
   const [{LegacyContract}, account] = [await getContractAPIs(), await unlockAccount(true)]
   console.error(`Using account: ${account}`)
@@ -40,6 +39,7 @@ export async function handler(argv) {
   const instance = await LegacyContract.at(argv.contract)
   while (true) {
     try {
+      updateConfig()
       await checkContract(instance, account)
     } catch (err) {
       console.error(err.stack)
@@ -79,7 +79,8 @@ async function handleCallForKeepersState(contract, account) {
   if (didSendProposal) {
     return
   }
-  const checkResult = await checkContractEgligibility(contract)
+  updateConfig()
+  const checkResult = await checkContractEligibility(contract)
   if (!checkResult.isContractEgligible) {
     console.error(`Skipping contract ${contract.address}: ${checkResult.comment}`)
     return
@@ -87,14 +88,13 @@ async function handleCallForKeepersState(contract, account) {
   await sendProposal(contract, account)
 }
 
-async function checkContractEgligibility(contract) {
+async function checkContractEligibility(contract) {
   const checkInInterval = await contract.checkInInterval()
-  if (checkInInterval.toNumber() > keeperConfig.maxCheckInIntervalSec) {
+  const {maxCheckInIntervalSec} = config.keeper
+  if (checkInInterval.toNumber() > maxCheckInIntervalSec) {
     return {
       isContractEgligible: false,
-      comment: `check-in interval ${checkInInterval} is larger than max ${
-        keeperConfig.maxCheckInIntervalSec
-      }`,
+      comment: `check-in interval ${checkInInterval} is larger than max ${maxCheckInIntervalSec}`,
     }
   }
   return {isContractEgligible: true}
@@ -109,7 +109,7 @@ async function sendProposal(contract, account) {
   await ensureUnlocked(account)
 
   const {txHash, txPriceWei} = await tx(
-    contract.submitKeeperProposal(keeperConfig.keypair.publicKey, keepingFee, {
+    contract.submitKeeperProposal(config.keeper.keypair.publicKey, keepingFee, {
       from: account,
       gas: 4700000, // TODO: estimate gas
     }),
@@ -123,7 +123,7 @@ async function calculateKeepingFee(contract) {
   const checkInInterval = await contract.checkInInterval()
   return new BigNumber(checkInInterval)
     .div(SECONDS_IN_MONTH)
-    .mul(keeperConfig.keepingFeePerContractMonth)
+    .mul(config.keeper.keepingFeePerContractMonth)
     .round(BigNumber.ROUND_UP)
 }
 
@@ -204,11 +204,13 @@ async function handleCallForKeysState(contract, account) {
   const myIndex = activeKeepersAddresses.indexOf(account)
   assert(myIndex >= 0, `active keeper's address should be in keeper addresses list`)
 
+  updateConfig()
+
   const keyPart = await encryptionUtils.decryptKeeperShare(
     encryptedData.encryptedKeyParts,
     numKeepers,
     myIndex,
-    keeperConfig.keypair.privateKey,
+    config.keeper.keypair.privateKey,
     keeper.keyPartHash,
   )
 

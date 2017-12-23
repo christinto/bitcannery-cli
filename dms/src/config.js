@@ -22,15 +22,21 @@ export const persistentConfig = new Conf({
   },
 })
 
-const config = persistentConfig.store
-overrideFromEnv(config, [])
+export let config = getConfig()
 
-if (!config.keeper.keypair) {
-  config.keeper.keypair = encryptionUtils.generateKeyPair()
-  persistentConfig.set('keeper.keypair', config.keeper.keypair)
+export function updateConfig() {
+  config = getConfig()
 }
 
-export default config
+function getConfig() {
+  let config = persistentConfig.store
+  overrideFromEnv(config, [])
+  if (!config.keeper.keypair) {
+    config.keeper.keypair = encryptionUtils.generateKeyPair()
+    persistentConfig.set('keeper.keypair', config.keeper.keypair)
+  }
+  return config
+}
 
 //
 // Utils

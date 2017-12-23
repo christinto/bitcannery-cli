@@ -2,7 +2,7 @@ import getWeb3 from './get-web3'
 import delay from './delay'
 import {promisifyCall} from './promisify'
 
-import config from '../config'
+import {config} from '../config'
 
 const RUNNING = -1
 const WAITING_FOR_JSON_RPC = 0
