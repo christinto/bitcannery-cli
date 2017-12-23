@@ -53,7 +53,7 @@ contract Registry {
     require(instance.getOwner() == msg.sender);
 
     address continuationAddress = instance.getContinuationContractAddress();
-    if (continuationAddress == 0 || continuationAddress == ctr.currentAddress) {
+    if (continuationAddress == 0) {
       return;
     }
 
