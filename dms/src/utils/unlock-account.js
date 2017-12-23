@@ -1,6 +1,5 @@
-import getWeb3 from './get-web3'
 import delay from './delay'
-import {promisifyCall} from './promisify'
+import {getAccounts, sign} from './web3'
 
 import {config} from '../config'
 
@@ -11,9 +10,9 @@ const WAITING_FOR_ACCOUNT_UNLOCKING = 2
 
 const TIMEOUT = 1000
 
-export async function isAccountLocked(address, web3) {
+export async function isAccountLocked(address) {
   try {
-    await promisifyCall(web3.eth.sign, web3.eth, [address, ''])
+    await sign(address, '')
   } catch (e) {
     return true
   }
@@ -25,8 +24,7 @@ export default async function unlockAccount(unlockPersistently = false) {
 
   while (true) {
     try {
-      const web3 = getWeb3()
-      const accounts = await promisifyCall(web3.eth.getAccounts, web3.eth)
+      const accounts = await getAccounts()
 
       if (state === WAITING_FOR_JSON_RPC) {
         state = RUNNING
@@ -48,7 +46,7 @@ export default async function unlockAccount(unlockPersistently = false) {
 
       const address = accounts[config.accountIndex]
 
-      if (await isAccountLocked(address, web3)) {
+      if (await isAccountLocked(address)) {
         if (state !== WAITING_FOR_ACCOUNT_UNLOCKING) {
           console.error(`\nAccount with address ${address} is locked, please unlock it.`)
           if (unlockPersistently) {

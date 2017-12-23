@@ -1,15 +1,19 @@
 import UserError from './user-error'
 
-export default async function runCommand(fn) {
+export default async function runCommand(fn, exitOnError = true) {
   try {
     return await fn()
   } catch (err) {
     if (err instanceof UserError) {
       console.error(`\nError: ${err.message}`)
-      process.exit(1)
+      if (exitOnError) {
+        process.exit(1)
+      }
     } else {
       console.error(err.stack)
-      process.exit(2)
+      if (exitOnError) {
+        process.exit(2)
+      }
     }
   }
 }

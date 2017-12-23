@@ -14,6 +14,10 @@ contract Registry {
   mapping(string => Contract) internal contractsById;
   string[] public contracts;
 
+  function getNumContracts() external view returns (uint) {
+    return contracts.length;
+  }
+
   function getContractAddress(string id) external view returns (address) {
     return contractsById[id].currentAddress;
   }
