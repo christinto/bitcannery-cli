@@ -49,24 +49,29 @@ export async function handler(argv) {
     await instance.calculateApproximateCheckInPrice(),
   ]
 
-  const nextCheckInDueDate = moment.unix(lastOwnerCheckInAt + checkInIntervalInSec)
+  const checkInDueDate = moment.unix(lastOwnerCheckInAt + checkInIntervalInSec)
+  const isCheckInOnTime = moment().isSameOrBefore(checkInDueDate)
 
-  const isCheckInOnTime = moment().isSameOrBefore(nextCheckInDueDate)
   if (!isCheckInOnTime) {
-    console.error(`Sorry, you have missed check-in due date`)
-    console.error(`Bob now can decrypt the legacy`)
+    console.error(`Sorry, you have missed check-in due date.`)
+    console.error(`Bob now can decrypt the legacy.`)
     return
   }
 
-  const fromNowToCheckin = moment().to(nextCheckInDueDate, true)
+  const checkInDuration = moment
+    .duration(checkInIntervalInSec, 's')
+    .humanize()
+    .replace(/^a /, '')
+
   const readyToPayForCheckIn = readlineSync.question(
-    `Send keeeping fees for the next ${fromNowToCheckin} (${formatWei(checkInPrice)}) [Y/n]? `,
+    `Send keeeping fees for the next ${checkInDuration} (${formatWei(checkInPrice)})? [Y/n] `,
   )
+
   if (!yn(readyToPayForCheckIn)) {
     return
   }
 
-  // TODO: check owner accaunt balance
+  // TODO: check owner account balance
 
   const {txHash, txPriceWei} = await tx(
     instance.ownerCheckIn({
