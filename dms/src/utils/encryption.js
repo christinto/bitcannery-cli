@@ -1,6 +1,6 @@
 const crypto = require('crypto')
 const eccrypto = require('eccrypto')
-const secrets = require('secrets.js')
+const secrets = require('secrets.js-grempe')
 const aesjs = require('aes-js')
 const soliditySha3 = require('solidity-sha3').default
 
