@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "migrate": "truffle migrate",
+    "migrate": "truffle migrate --network local",
     "test": "truffle test"
   },
   "devDependencies": {
@@ -13,7 +13,7 @@
     "eccrypto": "^1.0.3",
     "ethereumjs-testrpc": "^4.1.3",
     "secrets.js": "^0.1.8",
-    "truffle": "^4.0.1",
+    "truffle": "^4.0.4",
     "web3": "^1.0.0-beta.23"
   }
 }
