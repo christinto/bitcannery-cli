@@ -12,5 +12,5 @@ export function getLatestBlock() {
 }
 
 export function sign(address, data) {
-  return promisifyCall(web3.eth.sign, web3.eth, [address, ''])
+  return promisifyCall(web3.eth.sign, web3.eth, [address, data])
 }
