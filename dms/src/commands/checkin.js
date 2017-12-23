@@ -1,13 +1,13 @@
 import yn from 'yn'
 import moment from 'moment'
-
 import readlineSync from 'readline-sync'
 
-import getContractClass from '../utils/get-contract-class'
+import getContractInstance from '../utils/get-contract-instance'
 import unlockAccount from '../utils/unlock-account'
 import {formatWei} from '../utils/format'
 import {States} from '../utils/contract-api'
 import tx from '../utils/tx'
+import runCommand from '../utils/run-command'
 
 const GAS_HARD_LIMIT = 4700000
 
@@ -15,20 +15,22 @@ export const description = 'Owner check-in'
 
 export function yargsBuilder(yargs) {
   return yargs
-    .example('$0 checkin -c 0xf455c170ea2c42e0510a3e50625775efec89962e', 'Owner check-in')
+    .example('$0 checkin -c contract_id', 'Owner check-in')
     .alias('c', 'contract')
     .nargs('c', 1)
-    .describe('c', 'Specify the legacy contract')
+    .describe('c', 'ID or address of a contract')
     .demandOption(['c'])
 }
 
-export async function handler(argv) {
+export function handler(argv) {
+  return runCommand(() => checkIn(argv.contract))
+}
+
+export async function checkIn(contractAddressOrID) {
   const address = await unlockAccount()
-  // TODO: display current accaunt
+  // TODO: display current account
 
-  const LegacyContract = await getContractClass()
-  const instance = await LegacyContract.at(argv.contract)
-
+  const instance = await getContractInstance(contractAddressOrID)
   const [state, owner] = [(await instance.state()).toNumber(), await instance.owner()]
 
   if (owner !== address) {
@@ -36,7 +38,7 @@ export async function handler(argv) {
     return
   }
 
-  console.error(`You're identified as a contract owner.`)
+  console.error(`You've been identified as the contract owner.`)
 
   if (state !== States.Active) {
     console.error(`Owner can perform check-in only for a contract in Active state`)

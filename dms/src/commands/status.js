@@ -1,27 +1,28 @@
 import moment from 'moment'
 import getWeb3 from '../utils/get-web3'
-import getContractClass from '../utils/get-contract-class'
-import {States, stateToString} from '../utils/contract-api'
+import getContractInstance from '../utils/get-contract-instance'
+import {States} from '../utils/contract-api'
 import {formatWei} from '../utils/format'
+import runCommand from '../utils/run-command'
 
 export const description = 'Display the status of given legacy contract'
 
 export function yargsBuilder(yargs) {
   return yargs
-    .example(
-      '$0 status -c 0xf455c170ea2c42e0510a3e50625775efec89962e',
-      'Display the status of given legacy contract',
-    )
+    .example('$0 status -c contract_id', 'Display the status of a given contract')
     .alias('c', 'contract')
     .nargs('c', 1)
-    .describe('c', 'Specify the legacy contract')
+    .describe('c', 'ID or address of a contract')
     .demandOption(['c'])
 }
 
-export async function handler(argv) {
-  // TODO: ensure json rpc running and there is legacy contract w/ address
-  const LegacyContract = await getContractClass()
-  const instance = await LegacyContract.at(argv.contract)
+export function handler(argv) {
+  return runCommand(() => getStatus(argv.contract))
+}
+
+async function getStatus(contractAddressOrID) {
+  // TODO: ensure json rpc is running
+  const instance = await getContractInstance(contractAddressOrID)
 
   const [owner, state, checkInIntervalInSec, lastOwnerCheckInAt] = [
     await instance.owner(),
@@ -31,9 +32,9 @@ export async function handler(argv) {
   ]
 
   console.error()
-  console.error('Contract address: ', argv.contract)
+  console.error('Contract address: ', instance.address)
   console.error('Owner:', owner)
-  console.error('Contract state:', stateToString(state))
+  console.error('Contract state:', States.stringify(state))
 
   if (state === States.CallForKeepers) {
     const numProposals = await instance.getNumProposals()
@@ -48,10 +49,11 @@ export async function handler(argv) {
   }
 
   console.error(
-    'Check-in intreval:',
-    moment()
-      .add(checkInIntervalInSec, 's')
-      .toNow(true),
+    'Check-in intreval: each',
+    moment
+      .duration(checkInIntervalInSec, 's')
+      .humanize()
+      .replace(/^a /, ''),
   )
 
   if (state === States.Active) {

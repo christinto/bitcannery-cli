@@ -2,7 +2,7 @@ import BigNumber from 'bignumber.js'
 import assert from 'assert'
 
 import {States, assembleKeeperStruct, assembleEncryptedDataStruct} from '../utils/contract-api'
-import getContractClass from '../utils/get-contract-class'
+import getContractAPIs from '../utils/get-contract-apis'
 import getWeb3 from '../utils/get-web3'
 import {formatWei} from '../utils/format'
 import unlockAccount, {isAccountLocked} from '../utils/unlock-account'
@@ -34,7 +34,7 @@ const web3 = getWeb3()
 export async function handler(argv) {
   console.error(`Keeper config:`, sanitizeKeeperConfig(keeperConfig))
 
-  const [LegacyContract, account] = [await getContractClass(), await unlockAccount(true)]
+  const [{LegacyContract}, account] = [await getContractAPIs(), await unlockAccount(true)]
   console.error(`Using account: ${account}`)
 
   const instance = await LegacyContract.at(argv.contract)

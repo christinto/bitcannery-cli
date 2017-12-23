@@ -6,6 +6,7 @@ const soliditySha3 = require('solidity-sha3').default
 
 const packingUtils = require('./pack')
 const prefixUtils = require('./prefix')
+const UserError = require('./user-error').default
 
 const KEY_LENGTH_IN_BITS = 256
 const SHAMIR_BITS = 14 // 2 ^ 14 = 16384 max keepers
@@ -231,7 +232,7 @@ async function decryptKeeperShare(
  * shareLength - length of share string in hex characters
  * aesCounter - int counter for aes block mode
  *
- *  returns legacy 0x hex string or null if it doesnt possible to decrypt data
+ *  returns legacy 0x hex string
  */
 async function decryptData(
   encryptedLegacyData,
@@ -262,8 +263,7 @@ async function decryptData(
 
     return legacyData
   } catch (e) {
-    console.error('[ERROR!] failed to decrypt data\n')
-    return null
+    throw new UserError(`failed to decrypt (${e.message})`, e)
   }
 }
 

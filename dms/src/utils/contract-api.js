@@ -3,7 +3,7 @@
 
 const BigNumber = require('bignumber.js')
 
-const States = {
+export const States = {
   CallForKeepers: 0,
   Active: 1,
   CallForKeys: 2,
@@ -12,11 +12,11 @@ const States = {
 
 States.stringify = stateToString
 
-function stateToString(number) {
+export function stateToString(number) {
   return ['CallForKeepers', 'Active', 'CallForKeys', 'Cancelled'][+number]
 }
 
-function assembleKeeperStruct(rawStruct) {
+export function assembleKeeperStruct(rawStruct) {
   return {
     publicKey: rawStruct[0],
     keyPartHash: rawStruct[1],
@@ -27,7 +27,7 @@ function assembleKeeperStruct(rawStruct) {
   }
 }
 
-function assembleProposalStruct(rawStruct) {
+export function assembleProposalStruct(rawStruct) {
   return {
     keeperAddress: rawStruct[0],
     publicKey: rawStruct[1],
@@ -35,7 +35,7 @@ function assembleProposalStruct(rawStruct) {
   }
 }
 
-function assembleEncryptedDataStruct(rawStruct) {
+export function assembleEncryptedDataStruct(rawStruct) {
   return {
     encryptedData: rawStruct[0],
     aesCounter: rawStruct[1],
@@ -47,7 +47,7 @@ function assembleEncryptedDataStruct(rawStruct) {
   }
 }
 
-async function getActiveKeeperAddresses(contract) {
+export async function getActiveKeeperAddresses(contract) {
   const numKeepers = (await contract.getNumKeepers()).toNumber()
   const promises = Array(numKeepers)
     .fill(0)
@@ -55,17 +55,13 @@ async function getActiveKeeperAddresses(contract) {
   return Promise.all(promises)
 }
 
-async function getActiveKeepers(contract, keeperAddresses) {
+export async function getActiveKeepers(contract, keeperAddresses) {
   const rawStructs = await Promise.all(keeperAddresses.map(addr => contract.activeKeepers(addr)))
   return rawStructs.map(assembleKeeperStruct)
 }
 
-module.exports = {
-  States,
-  stateToString,
-  assembleKeeperStruct,
-  assembleProposalStruct,
-  assembleEncryptedDataStruct,
-  getActiveKeeperAddresses,
-  getActiveKeepers,
+export async function fetchKeeperProposals(contract) {
+  const numProposals = await contract.getNumProposals()
+  const promises = new Array(+numProposals).fill(0).map((_, i) => contract.keeperProposals(i))
+  return (await Promise.all(promises)).map(rawProposal => assembleProposalStruct(rawProposal))
 }

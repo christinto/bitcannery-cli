@@ -1,14 +1,19 @@
-import fs from 'fs'
 import assert from 'assert'
-import yn from 'yn'
 import readlineSync from 'readline-sync'
+import dockerNames from 'docker-names'
+import BigNumber from 'bignumber.js'
 
-import getContractClass from '../utils/get-contract-class'
+import runCommand from '../utils/run-command'
+import getContractAPIs from '../utils/get-contract-apis'
 import unlockAccount from '../utils/unlock-account'
 import {generateKeyPair, encryptData} from '../utils/encryption'
-import {States, assembleProposalStruct} from '../utils/contract-api'
+import {States, fetchKeeperProposals} from '../utils/contract-api'
 import {formatWei} from '../utils/format'
 import tx from '../utils/tx'
+import readFile from '../utils/read-file'
+import delay from '../utils/delay'
+import print, {question, ynQuestion} from '../utils/print'
+import UserError from '../utils/user-error'
 
 // Fail if tx is going to take more gas than this.
 //
@@ -27,33 +32,58 @@ export function yargsBuilder(yargs) {
     .demandOption(['f'])
 }
 
-export async function handler(argv) {
-  console.error('Welcome to KeeperNet v2!')
+export function handler(argv) {
+  return runCommand(() => deploy(argv.file))
+}
 
-  const fileContent = await readFile(argv.file)
+async function deploy(pathToFile) {
+  print('Welcome to KeeperNet v2!\n')
+
+  const fileContent = await readFile(pathToFile)
   const legacyData = '0x' + fileContent.toString('hex')
 
   const address = await unlockAccount()
-  console.error(`Address ${address} will be`)
-  console.error(`used to create a new contract.`)
-  console.error(`Generated Bob's private key... (you must give it to Bob)`)
+
+  print(`Address ${address} will be used to create a new contract.\n`)
+
+  const {LegacyContract, registry} = await getContractAPIs()
+  const contractId = await obtainNewContractName(registry)
 
   const {privateKey, publicKey} = generateKeyPair()
 
-  console.error(privateKey, '\n')
-  console.error(`Check-in every ${CHECKIN_INTERVAL_SEC / 60} minutes`)
-  console.error(`Your contract will be secured by ${NUM_KEEPERS} keepers`)
-  console.error(`Publishing a new contract...`)
+  print(
+    `\nGenerated Bob's private key. You must send it to Bob using secure channel. If you ` +
+      `don't give it to Bob, he won't be able to decrypt the data. If you transfer it ` +
+      `using non-secure channel, anyone will be able to decrypt the data:\n\n` +
+      `${privateKey}\n\n` +
+      `Check-in every ${CHECKIN_INTERVAL_SEC / 60} minutes.\n` +
+      `Your contract will be secured by ${NUM_KEEPERS} keepers.\n\n` +
+      `Publishing a new contract...`,
+  )
 
-  const LegacyContract = await getContractClass()
   const instance = await LegacyContract.new(CHECKIN_INTERVAL_SEC, {
     from: address,
-    gas: GAS_HARD_LIMIT,
+    gas: GAS_HARD_LIMIT, // TODO: estimate gas usage
   })
 
-  console.error(`Contract is published.`)
-  console.error(`Contract address is ${instance.address}`)
-  console.error(`System is calling for keepers, this might take some time...`)
+  print(
+    `Contract is published.\n` +
+      `Contract address is ${instance.address}\n\n` +
+      `Registering contract...`,
+  )
+
+  const registerTxResult = await tx(
+    registry.addContract(contractId, instance.address, {
+      from: address,
+      gas: GAS_HARD_LIMIT, // TODO: estimate gas usage
+    }),
+  )
+
+  print(
+    `Done! Transaction hash: ${registerTxResult.txHash}\n` +
+      `Paid for transaction: ${formatWei(registerTxResult.txPriceWei)}\n\n` +
+      `System is calling for keepers, this might take some time...\n`,
+  )
 
   let numKeepersProposals = (await instance.getNumProposals()).toNumber()
   let currentKeepersProposals = numKeepersProposals
@@ -61,7 +91,7 @@ export async function handler(argv) {
   while (numKeepersProposals < NUM_KEEPERS) {
     numKeepersProposals = (await instance.getNumProposals()).toNumber()
     if (numKeepersProposals > currentKeepersProposals) {
-      console.error(`${numKeepersProposals} keepers have joined...`)
+      print(`${numKeepersProposals} keepers have joined...`)
       currentKeepersProposals = numKeepersProposals
     }
     if (numKeepersProposals < NUM_KEEPERS) {
@@ -69,19 +99,19 @@ export async function handler(argv) {
     }
   }
 
-  console.error(`You have enough keepers now. Do you want to activate the contract?`)
-
   let selectedProposalIndices = []
   for (let i = 0; i < NUM_KEEPERS; ++i) {
     selectedProposalIndices.push(i)
   }
 
   const activationPrice = await instance.calculateActivationPrice(selectedProposalIndices)
-  const doYouWantToPay = readlineSync.question(
-    `You will pay ${formatWei(activationPrice)} for each check-in interval [Y/n] `,
+  const doActivate = ynQuestion(
+    `\nYou have enough keepers now.\n` +
+      `You will pay ${formatWei(activationPrice)} for each check-in interval. ` +
+      `Do you want to activate the contract?`,
   )
 
-  if (!yn(doYouWantToPay)) {
+  if (!doActivate) {
     return
   }
 
@@ -102,9 +132,9 @@ export async function handler(argv) {
 
   // console.error('encryptionResult:', encryptionResult)
 
-  console.error(`Activating contract...`)
+  print(`Activating contract...`)
 
-  const {txHash, txPriceWei} = await tx(
+  const acceptTxResult = await tx(
     instance.acceptKeepers(
       selectedProposalIndices,
       encryptionResult.keyPartHashes,
@@ -121,31 +151,42 @@ export async function handler(argv) {
     ),
   )
 
-  console.error(`Done! Transaction hash: ${txHash}`)
-  console.error(`Paid for transaction: ${formatWei(txPriceWei)}`)
+  print(
+    `Done! Transaction hash: ${acceptTxResult.txHash}\n` +
+      `Paid for transaction: ${formatWei(acceptTxResult.txPriceWei)}`,
+  )
 
   const state = await instance.state()
   assert.equal(state.toNumber(), States.Active)
 }
 
-async function fetchKeeperProposals(instance) {
-  const numProposals = await instance.getNumProposals()
-  const promises = new Array(+numProposals).fill(0).map((_, i) => instance.keeperProposals(i))
-  return (await Promise.all(promises)).map(rawProposal => assembleProposalStruct(rawProposal))
+async function obtainNewContractName(registry) {
+  let name = getRandomName()
+  while (!await isUnique(name, registry)) {
+    name = getRandomName()
+  }
+  const useRandomName = ynQuestion(
+    `The automatically-generated random name for this contract is "${name}". ` +
+      `Do you want to use it?`,
+  )
+  if (useRandomName) {
+    return name
+  }
+  name = question.demandAnswer(`Please enter name for this contract:`)
+  while (!await isUnique(name, registry)) {
+    name = question.demandAnswer(
+      `\nUnfortunately, there is already a contract with this name ` +
+        `in the system. Please enter another name:`,
+    )
+  }
+  return name
 }
 
-async function readFile(path) {
-  return new Promise((resolve, reject) => {
-    fs.readFile(path, (err, data) => {
-      if (err) {
-        reject(err)
-      } else {
-        resolve(data)
-      }
-    })
-  })
+function getRandomName() {
+  return dockerNames.getRandomName() + '_' + Math.floor(Math.random() * 99 + 1)
 }
 
-function delay(ms) {
-  return new Promise(resolve => setTimeout(() => resolve(), ms))
+async function isUnique(name, registry) {
+  const address = await registry.getContractAddress(name)
+  return new BigNumber(address).isZero()
 }

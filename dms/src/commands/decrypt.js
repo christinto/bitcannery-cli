@@ -1,24 +1,28 @@
 import readlineSync from 'readline-sync'
 
-import getContractClass from '../utils/get-contract-class'
+import getContractInstance from '../utils/get-contract-instance'
 import {generateKeyPair, decryptData} from '../utils/encryption'
 import {States, assembleEncryptedDataStruct} from '../utils/contract-api'
+import runCommand from '../utils/run-command'
 
 export const description = 'Decrypt the legacy'
 
 export function yargsBuilder(yargs) {
   return yargs
-    .example('$0 decrypt -c 0xf455c170ea2c42e0510a3e50625775efec89962e', 'Decrypt the legacy')
+    .example('$0 decrypt -c contract_id', 'Decrypt the legacy')
     .alias('c', 'contract')
     .nargs('c', 1)
-    .describe('c', 'Specify the legacy contract')
+    .describe('c', 'ID or address of a contract')
     .demandOption(['c'])
 }
 
-export async function handler(argv) {
-  // TODO: ensure json rpc running and there is legacy contract w/ address
-  const LegacyContract = getContractClass()
-  const instance = await LegacyContract.at(argv.contract)
+export function handler(argv) {
+  return runCommand(() => decrypt(argv.contract))
+}
+
+async function decrypt(contractAddressOrID) {
+  // TODO: ensure json rpc is running
+  const instance = await getContractInstance(contractAddressOrID)
 
   const [state, encryptedDataRaw, suppliedKeyPartsCount] = [
     (await instance.state()).toNumber(),
@@ -33,7 +37,7 @@ export async function handler(argv) {
     return
   }
 
-  console.error(`Welcome to KeeperNet v2! Contract is "ready for decryption" status.`)
+  console.error(`Welcome to KeeperNet v2! Contract is in "ready for decryption" state.`)
 
   let suppliedKeyParts = []
   for (let i = 0; i < suppliedKeyPartsCount; ++i) {
