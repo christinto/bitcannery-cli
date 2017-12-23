@@ -6,6 +6,7 @@ const commandNames = [
   'keeper',
   'checkin',
   'decrypt',
+  'set-fee',
   'set-account-index',
 ]
 
