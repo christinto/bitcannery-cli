@@ -3,7 +3,7 @@ pragma solidity 0.4.18;
 import "./CryptoLegacyBaseAPI.sol";
 
 contract Registry {
-  event NewContract(string id, address addr);
+  event NewContract(string id, address addr, uint totalContracts);
 
   struct Contract {
     address initialAddress;
@@ -46,7 +46,7 @@ contract Registry {
     contractsByOwner[owner].push(id);
     contractsById[id] = Contract({initialAddress: addr, currentAddress: addr});
 
-    NewContract(id, addr);
+    NewContract(id, addr, contracts.length);
   }
 
   function updateAddress(string id) external {

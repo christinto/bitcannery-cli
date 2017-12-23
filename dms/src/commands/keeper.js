@@ -43,7 +43,7 @@ async function runKeeper() {
   const [{LegacyContract, registry}, account] = [await getContractAPIs(), await unlockAccount(true)]
   const api = {LegacyContract, registry, account}
 
-  console.error(`Using account: ${account}`)
+  console.error(`Using account with index ${config.accountIndex}: ${account}`)
 
   await watchCurrentContracts(api)
   await watchForNewContracts(api)
@@ -96,8 +96,9 @@ function handleRegistryEvent(log, api) {
   }
 }
 
-async function handleNewContractEvent({id, addr: address}, api) {
+async function handleNewContractEvent({id, addr: address, totalContracts}, api) {
   console.error(`==> Detected new contract "${id}" at address ${address}`)
+  contractsStore.setLastCheckedContractIndex(totalContracts.toNumber() - 1)
   updateConfigThrottled()
   return checkContractWithAddress(address, api)
 }
@@ -108,8 +109,12 @@ async function checkNewContractsSinceLastStart(api) {
   const totalContracts = await toNumber(api.registry.getNumContracts())
 
   let lastIndex = contractsStore.getLastCheckedContractIndex()
-  if (lastIndex == null) {
+  if (lastIndex == null || lastIndex == -1) {
     lastIndex = Math.max(-1, totalContracts - NUM_CONTRACTS_TO_CHECK_ON_FIRST_RUN - 1)
+  } else if (lastIndex >= totalContracts) {
+    console.error(`WARN seems you switched to a different network.`)
+    lastIndex = totalContracts - 1
+    contractsStore.setLastCheckedContractIndex(lastIndex)
   }
 
   let numContractsToCheck = totalContracts - 1 - lastIndex
@@ -355,9 +360,9 @@ async function handleCancelledState(contract, {account}) {
   )
 
   printTx(txHash, keeper.balance, txPriceWei)
+  contractsStore.removeContract(contract.address)
 
   // TODO: check for continuation contract
-  // TODO: remove contract from watchlist
 }
 
 //
