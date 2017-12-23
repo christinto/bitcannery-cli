@@ -204,10 +204,13 @@ async function handleCallForKeysState(contract, account) {
   const myIndex = activeKeepersAddresses.indexOf(account)
   assert(myIndex >= 0, `active keeper's address should be in keeper addresses list`)
 
-  const enctyptedKeyParts = packingUtils.unpack(encryptedData.encryptedKeyParts, numKeepers)
-  const encryptedKeyPartData = enctyptedKeyParts[myIndex]
-  const encryptedKeyPart = packingUtils.unpackElliptic(encryptedKeyPartData)
-  const keyPart = await encryptionUtils.ecDecrypt(encryptedKeyPart, keeperConfig.keypair.privateKey)
+  const keyPart = await encryptionUtils.decryptKeeperShare(
+    encryptedData.encryptedKeyParts,
+    numKeepers,
+    myIndex,
+    keeperConfig.keypair.privateKey,
+    keeper.keyPartHash,
+  )
 
   console.error(`Decrypted key part: ${keyPart}`)
 

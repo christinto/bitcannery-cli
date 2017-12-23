@@ -64,6 +64,7 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     bytes16 aesCounter;
     bytes32 dataHash; // sha-3 hash
     bytes encryptedKeyParts; // packed array of key parts
+    uint16 shareLength;
     bytes[] suppliedKeyParts;
   }
 
@@ -194,6 +195,7 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     uint[] selectedProposalIndices,
     bytes32[] keyPartHashes,
     bytes encryptedKeyParts,
+    uint16 shareLength,
     bytes _encryptedData,
     bytes32 dataHash,
     bytes16 aesCounter
@@ -206,6 +208,7 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
       aesCounter: aesCounter,
       dataHash: dataHash,
       encryptedKeyParts: encryptedKeyParts,
+      shareLength: shareLength,
       suppliedKeyParts: new bytes[](0)
     });
 

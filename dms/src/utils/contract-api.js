@@ -41,7 +41,8 @@ function assembleEncryptedDataStruct(rawStruct) {
     aesCounter: rawStruct[1],
     dataHash: rawStruct[2],
     encryptedKeyParts: rawStruct[3],
-    // suppliedKeyParts: rawStruct[4],
+    shareLength: rawStruct[4].toNumber(),
+    // suppliedKeyParts: rawStruct[5],
     // encoding bytes[] is not supported by current version of Solidity
   }
 }

@@ -42,18 +42,16 @@ export async function handler(argv) {
 
   suppliedKeyParts = await Promise.all(suppliedKeyParts)
 
-  const {encryptedData, aesCounter, dataHash, encryptedKeyParts} = assembleEncryptedDataStruct(
-    encryptedDataRaw,
-  )
-
+  const data = assembleEncryptedDataStruct(encryptedDataRaw)
   const privateKey = readlineSync.question(`To decrypt a contract enter your private key: `)
 
   const legacy = await decryptData(
-    encryptedData,
-    dataHash,
+    data.encryptedData,
+    data.dataHash,
     privateKey,
     suppliedKeyParts,
-    aesCounter,
+    data.shareLength,
+    data.aesCounter,
   )
 
   if (legacy === null) {

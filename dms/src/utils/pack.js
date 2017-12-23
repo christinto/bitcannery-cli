@@ -1,11 +1,12 @@
 import prefixUtils from './prefix'
 
-const ZERO_PADDING_LENGTH = 3
-const ZERO_PADDING = '000'
+const ZERO_PADDING = '0000'
+const ZERO_PADDING_LENGTH = ZERO_PADDING.length
+const MAX_SEGMENTS = Math.pow(16, ZERO_PADDING_LENGTH)
 
 function splitStringBySegmentLength(str, segmentLength) {
   if (segmentLength <= 0) {
-    throw Error('segmentLength should be greater then 0')
+    throw Error('segmentLength should be greater than 0')
   }
 
   const target = []
@@ -25,9 +26,9 @@ function pack(segments) {
   for (let i = 0; i < segments.length; ++i) {
     let part = prefixUtils.trim0x(segments[i])
 
-    if (part.length >= Math.pow(16, ZERO_PADDING_LENGTH)) {
-      throw Error(
-        `one of part's length is greater of equal than ${Math.pow(16, ZERO_PADDING_LENGTH)}`,
+    if (part.length >= MAX_SEGMENTS) {
+      throw new Error(
+        `length of each segment must be less than ${MAX_SEGMENTS}, got ${part.length}`,
       )
     }
 

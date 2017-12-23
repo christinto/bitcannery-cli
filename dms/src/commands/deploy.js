@@ -109,6 +109,7 @@ export async function handler(argv) {
       selectedProposalIndices,
       encryptionResult.keyPartHashes,
       encryptionResult.encryptedKeyParts,
+      encryptionResult.shareLength,
       encryptionResult.encryptedLegacyData,
       encryptionResult.legacyDataHash,
       encryptionResult.aesCounter,

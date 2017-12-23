@@ -113,6 +113,7 @@ async function ecDecrypt(encrypted, privateKey) {
  *  returns {
  *    encryptedKeyParts - packed 0x hex string of encrypted keeper keys
  *    keyPartHashes - array of 0x sha3 solidity hashes of keeper keys
+ *    shareLength - length of share string in hex characters
  *    legacyDataHash - 0x sha3 solidity hash of legacy data
  *    encryptedLegacyData - 0x hex string of encrypted legacy data
  *  }
@@ -140,33 +141,38 @@ async function encryptData(legacyData, bobPublicKey, keeperPublicKeys, numKeeper
     aesKeyBuffer.toString('hex'),
     keeperCount,
     numKeepersToRecover,
+    1, // padLength
   )
 
+  let shareLength
+
   for (let i = 0; i < keeperCount; ++i) {
-    const keeperPublicKey = prefixUtils.trim0x(keeperPublicKeys[i])
-    const keeperSecret = keeperSecrets[i]
+    const keeperPublicKey = keeperPublicKeys[i]
+    let keeperSecret = shareToHex(keeperSecrets[i])
+
+    if (!shareLength) {
+      shareLength = keeperSecret.length - 2
+    }
+
+    if (shareLength % 2 != 0) {
+      keeperSecret = keeperSecret + '0'
+    }
 
     const encryptedKeyPart = await eccrypto.encrypt(
-      Buffer.from(keeperPublicKey, 'hex'),
-      Buffer.from(keeperSecret, 'hex'),
+      Buffer.from(prefixUtils.trim0x(keeperPublicKey), 'hex'),
+      Buffer.from(prefixUtils.trim0x(keeperSecret), 'hex'),
     )
 
     encryptedKeyPartsArray[i] = packingUtils.packElliptic(encryptedKeyPart)
     keyPartHashes[i] = sha3(keeperSecret)
   }
 
-  let encryptedKeyParts = packingUtils.pack(encryptedKeyPartsArray)
-
-  // workaround because of web3/solidity bug with losing last half byte if
-  // encryptedKeyParts length is odd
-  // TODO: perform investigation
-  if (encryptedKeyParts.length % 2 !== 0) {
-    encryptedKeyParts = encryptedKeyParts + '0'
-  }
+  const encryptedKeyParts = packingUtils.pack(encryptedKeyPartsArray)
 
   return {
     encryptedKeyParts,
     keyPartHashes,
+    shareLength,
     legacyDataHash,
     encryptedLegacyData,
     aesCounter: '0x' + aesCounterBuffer.toString('hex'),
@@ -174,10 +180,55 @@ async function encryptData(legacyData, bobPublicKey, keeperPublicKeys, numKeeper
 }
 
 /**
+ * A share starts from a character which is base-36 encoded number of
+ * bits used for the Galois Field. Te rest of the share is hex-encoded.
+ *
+ * We need to convert the first character to hex in order to use
+ * Buffer.from(x, 'hex') on the entire string,  e.g. "e" -> "0e",
+ * "k" -> "14", etc.
+ *
+ * See: https://github.com/amper5and/secrets.js#share-format
+ */
+function shareToHex(share) {
+  let bits = parseInt(share[0], 36).toString(16)
+  if (bits.length == 1) {
+    bits = '0' + bits
+  }
+  return prefixUtils.ensure0x(bits + share.substr(1))
+}
+
+/**
+ * Converts hex-encoded share into the format accepted by secrets.js (see shareToHex).
+ */
+function shareFromHex(hex) {
+  hex = prefixUtils.trim0x(hex)
+  const bits = parseInt(hex.substr(0, 2), 16).toString(36)
+  return (bits + hex.substr(2)).toLowerCase()
+}
+
+async function decryptKeeperShare(
+  encryptedShares,
+  numKeepers,
+  keeperIndex,
+  keeperPrivateKey,
+  shareHash,
+) {
+  const encryptedSharesArray = packingUtils.unpack(encryptedShares, numKeepers)
+  const encryptedShareData = encryptedSharesArray[keeperIndex]
+  const encryptedShare = packingUtils.unpackElliptic(encryptedShareData)
+  const shareHex = await ecDecrypt(encryptedShare, keeperPrivateKey)
+  if (sha3(shareHex) !== shareHash) {
+    throw new Error(`hashes don't match`)
+  }
+  return shareHex
+}
+
+/**
  * encryptedLegacyData - 0x hex string of encrypted legacy data
  * legacyDataHash - 0x sha3 solidity hash of legacy data
  * bobPrivateKey - 0x hex string of Bob's private key
  * keyParts - array of 0x hex string
+ * shareLength - length of share string in hex characters
  * aesCounter - int counter for aes block mode
  *
  *  returns legacy 0x hex string or null if it doesnt possible to decrypt data
@@ -187,14 +238,17 @@ async function decryptData(
   legacyDataHash,
   bobPrivateKey,
   keyParts,
+  shareLength,
   aesCounter,
 ) {
   try {
-    const recoveredAesKey = secrets.combine(keyParts.map(kp => prefixUtils.trim0x(kp)))
+    const recoveredAESKey = secrets.combine(
+      keyParts.map(kp => shareFromHex(kp.substr(0, shareLength + 2))),
+    )
 
     const encryptedForBob = aesDecrypt(
       prefixUtils.trim0x(encryptedLegacyData),
-      recoveredAesKey,
+      recoveredAESKey,
       Buffer.from(prefixUtils.trim0x(aesCounter), 'hex'),
     )
 
@@ -203,7 +257,7 @@ async function decryptData(
     const calculatedSha3 = sha3(legacyData)
 
     if (calculatedSha3 !== legacyDataHash) {
-      throw new Error('legacy hashes dont match')
+      throw new Error(`hashes don't match`)
     }
 
     return legacyData
@@ -218,4 +272,5 @@ module.exports = {
   ecDecrypt,
   encryptData,
   decryptData,
+  decryptKeeperShare,
 }
