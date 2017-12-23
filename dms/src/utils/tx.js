@@ -1,10 +1,9 @@
-import getWeb3 from './get-web3'
+import {getTransaction} from './web3'
 import BigNumber from 'bignumber.js'
 
 async function inspectTransaction(txResultPromise) {
-  const web3 = getWeb3()
   const txResult = await txResultPromise
-  const tx = await web3.eth.getTransaction(txResult.tx)
+  const tx = await getTransaction(txResult.tx)
   const {receipt} = txResult
   const success =
     receipt.status !== undefined

@@ -11,6 +11,10 @@ export function getLatestBlock() {
   return promisifyCall(web3.eth.getBlock, web3.eth, ['latest'])
 }
 
+export function getTransaction(txHash) {
+  return promisifyCall(web3.eth.getTransaction, web3.eth, [txHash])
+}
+
 export function sign(address, data) {
   return promisifyCall(web3.eth.sign, web3.eth, [address, data])
 }
