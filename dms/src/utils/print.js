@@ -19,7 +19,9 @@ function makeWrap() {
   })
 }
 
-export default function print(message) {
+export default print
+
+export function print(message) {
   console.error(_wrap(message))
 }
 

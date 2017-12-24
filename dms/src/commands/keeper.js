@@ -6,14 +6,14 @@ import getContractAPIs from '../utils/get-contract-apis'
 import {getLatestBlock} from '../utils/web3'
 import {formatWei} from '../utils/format'
 import unlockAccount, {isAccountLocked} from '../utils/unlock-account'
-import tx from '../utils/tx'
+import {contractTx} from '../utils/tx'
 import encryptionUtils from '../utils/encryption'
 import delay from '../utils/delay'
 import runCommand from '../utils/run-command'
 import toNumber from '../utils/to-number'
 import runInChunks from '../utils/run-in-chunks'
+import throttle from '../utils/throttle'
 import {config, updateConfig} from '../config'
-import {getGasPrice} from '../utils/web3'
 
 import contractsStore from './keeper/contracts-store'
 
@@ -24,6 +24,9 @@ export function yargsBuilder(yargs) {
 }
 
 const SECONDS_IN_MONTH = 60 * 60 * 24 * 30
+
+// TODO: move these to config.
+//
 const NUM_CONTRACTS_TO_CHECK_ON_FIRST_RUN = 100
 const MAX_CONTRACTS_TO_CHECK_SINCE_LAST_RUN = 100
 const PROCESS_N_CONTRACTS_IN_PARALLEL = 10
@@ -48,6 +51,9 @@ async function runKeeper() {
 
   await watchCurrentContracts(api)
   await watchForNewContracts(api)
+  //
+  // FIXME: RACE CONDITION HERE!!!!!!
+  //
   await delay(3000) // give some time for event watcher to start
   await checkNewContractsSinceLastStart(api)
 }
@@ -154,7 +160,7 @@ async function checkContractWithAddress(address, api) {
 
 async function checkContract(contract, api) {
   const state = await contract.state()
-  // console.error(`Contract state: ${States.stringify(state)}`)
+  // console.error(`Contract ${contract.address} state: ${States.stringify(state)}`)
   switch (state.toNumber()) {
     case States.CallForKeepers: {
       return handleCallForKeepersState(contract, api)
@@ -214,14 +220,12 @@ async function sendProposal(contract, account) {
 
   await ensureUnlocked(account)
 
-  const gasPrice = await getGasPrice()
-
-  const {txHash, txPriceWei} = await tx(
-    contract.submitKeeperProposal(config.keeper.keypair.publicKey, keepingFee, {
-      from: account,
-      gasPrice: gasPrice,
-      gas: 4700000,
-    })
+  const {txHash, txPriceWei} = await contractTx(
+    contract,
+    'submitKeeperProposal',
+    config.keeper.keypair.publicKey,
+    keepingFee,
+    {from: account},
   )
 
   console.error(`Done! Transaction hash: ${txHash}`)
@@ -269,16 +273,7 @@ async function handleActiveState(contract, api) {
   // TODO: check that ETH to be received is bigger than TX price, and don't check in otherwise
 
   await ensureUnlocked(account)
-
-  const gasPrice = await getGasPrice()
-
-  const {txHash, txPriceWei} = await tx(
-    contract.keeperCheckIn({
-      from: account,
-      gasPrice: gasPrice,
-      gas: 4700000,
-    })
-  )
+  const {txHash, txPriceWei} = await contractTx(contract, 'keeperCheckIn', {from: account})
 
   printTx(txHash, keeper.balance, txPriceWei)
 
@@ -311,7 +306,7 @@ async function handleCallForKeysState(contract, {account}) {
   ]
 
   const activeKeepersAddresses = await Promise.all(
-    new Array(numKeepers).fill(0).map((_, i) => contract.activeKeepersAddresses(i))
+    new Array(numKeepers).fill(0).map((_, i) => contract.activeKeepersAddresses(i)),
   )
 
   const myIndex = activeKeepersAddresses.indexOf(account)
@@ -324,22 +319,13 @@ async function handleCallForKeysState(contract, {account}) {
     numKeepers,
     myIndex,
     config.keeper.keypair.privateKey,
-    keeper.keyPartHash
+    keeper.keyPartHash,
   )
 
   console.error(`Decrypted key part: ${keyPart}`)
 
   await ensureUnlocked(account)
-
-  const gasPrice = await getGasPrice()
-
-  const {txHash, txPriceWei} = await tx(
-    contract.supplyKey(keyPart, {
-      from: account,
-      gasPrice: gasPrice,
-      gas: 4700000,
-    })
-  )
+  const {txHash, txPriceWei} = await contractTx(contract, 'supplyKey', keyPart, {from: account})
 
   const received = keeper.balance.plus(keeper.keepingFee)
   printTx(txHash, received, txPriceWei)
@@ -361,16 +347,7 @@ async function handleCancelledState(contract, {account}) {
   console.error(`==> Performing final check-in for contract ${contract.address}...`)
 
   await ensureUnlocked(account)
-
-  const gasPrice = await getGasPrice()
-
-  const {txHash, txPriceWei} = await tx(
-    contract.keeperCheckIn({
-      from: account,
-      gasPrice: gasPrice,
-      gas: 4700000,
-    })
-  )
+  const {txHash, txPriceWei} = await contractTx(contract, 'keeperCheckIn', {from: account})
 
   printTx(txHash, keeper.balance, txPriceWei)
   contractsStore.removeContract(contract.address)
@@ -394,7 +371,7 @@ function printTx(txHash, received, txPrice) {
     `Done! Transaction hash: ${txHash}\n` +
       `Received ${formatWei(received)}, ` +
       `transaction fee ${formatWei(txPrice)}, ` +
-      `balance change ${formatWei(received.minus(txPrice))}`
+      `balance change ${formatWei(received.minus(txPrice))}`,
   )
 }
 
@@ -406,16 +383,5 @@ function sanitizeKeeperConfig(keeperConfig) {
       privateKey: '<stripped for logs>',
     },
     contracts: ['<stripped for logs>'],
-  }
-}
-
-function throttle(timeout, fn) {
-  let lastCalledAt = 0
-  return () => {
-    const now = Date.now()
-    if (now - lastCalledAt >= timeout) {
-      fn()
-      lastCalledAt = now
-    }
   }
 }

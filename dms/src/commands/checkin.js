@@ -1,16 +1,12 @@
-import yn from 'yn'
 import moment from 'moment'
-import readlineSync from 'readline-sync'
 
 import getContractInstance from '../utils/get-contract-instance'
 import unlockAccount from '../utils/unlock-account'
 import {formatWei} from '../utils/format'
 import {States} from '../utils/contract-api'
-import tx from '../utils/tx'
+import {contractTx} from '../utils/tx'
+import {print, ynQuestion} from '../utils/print'
 import runCommand from '../utils/run-command'
-import {getGasPrice} from '../utils/web3'
-
-const GAS_HARD_LIMIT = 4700000
 
 export const description = 'Owner check-in'
 
@@ -61,31 +57,41 @@ export async function checkIn(contractAddressOrID) {
     return
   }
 
-  const checkInDuration = moment.duration(checkInIntervalInSec, 's').humanize().replace(/^a /, '')
-
-  const readyToPayForCheckIn = readlineSync.question(
-    `Send keeeping fees for the next ${checkInDuration} (${formatWei(checkInPrice)})? [Y/n] `
-  )
-
-  if (!yn(readyToPayForCheckIn)) {
-    return
-  }
-
   // TODO: check owner account balance
 
-  const gasPrice = await getGasPrice()
+  const txResult = await contractTx(instance, 'ownerCheckIn', {
+    from: address,
+    value: checkInPrice,
+    approveFee: (gas, gasPrice) => {
+      const checkInDuration = moment
+        .duration(checkInIntervalInSec, 's')
+        .humanize()
+        .replace(/^a /, '')
+      const txFee = gas.times(gasPrice)
+      const combinedFee = txFee.plus(checkInPrice)
+      const proceed = ynQuestion(
+        `\nCheck-in will cost you ${formatWei(combinedFee)}:\n` +
+          `  keeping fee for the next ${checkInDuration}: ${formatWei(checkInPrice)},\n` +
+          `  transaction cost: ${formatWei(txFee)}.\n\n` +
+          `Proceed?`,
+      )
+      if (proceed) {
+        print(`Checking in...`)
+      }
+      return proceed
+    },
+  })
 
-  const {txHash, txPriceWei} = await tx(
-    instance.ownerCheckIn({
-      from: address,
-      gas: GAS_HARD_LIMIT,
-      gasPrice: gasPrice,
-      value: checkInPrice,
-    })
+  if (txResult) {
+    console.error(`Done! Transaction hash: ${txResult.txHash}`)
+    console.error(`Paid for transaction: ${formatWei(txResult.txPriceWei)}`)
+  }
+
+  console.error(`\nSee you next time!`)
+  console.error(
+    'The next check-in:',
+    moment()
+      .add(checkInIntervalInSec, 's')
+      .fromNow(),
   )
-
-  console.error(`Done! Transaction hash: ${txHash}`)
-  console.error(`Paid for transaction: ${formatWei(txPriceWei)}\n`)
-  console.error(`See you next time!`)
-  console.error('The next check-in:', moment().add(checkInIntervalInSec, 's').fromNow())
 }

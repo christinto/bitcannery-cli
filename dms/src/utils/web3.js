@@ -15,10 +15,10 @@ export function getTransaction(txHash) {
   return promisifyCall(web3.eth.getTransaction, web3.eth, [txHash])
 }
 
-export function sign(address, data) {
-  return promisifyCall(web3.eth.sign, web3.eth, [address, data])
-}
-
 export function getGasPrice() {
   return promisifyCall(web3.eth.getGasPrice, web3.eth)
+}
+
+export function sign(address, data) {
+  return promisifyCall(web3.eth.sign, web3.eth, [address, data])
 }
