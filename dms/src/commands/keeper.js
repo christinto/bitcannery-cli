@@ -63,8 +63,12 @@ async function watchCurrentContracts(api) {
 }
 
 async function watchContractWithAddress(address, api) {
-  const instance = await api.LegacyContract.at(address)
-  return watchContract(instance, api)
+  try {
+    const instance = await api.LegacyContract.at(address).then(x => x)
+    return watchContract(instance, api)
+  } catch (err) {
+    handleContractObtainingError(err, address)
+  }
 }
 
 async function watchContract(instance, api) {
@@ -116,12 +120,15 @@ async function checkNewContractsSinceLastStart(api) {
   const totalContracts = await toNumber(api.registry.getNumContracts())
 
   let lastIndex = contractsStore.getLastCheckedContractIndex()
+
+  if (lastIndex >= totalContracts) {
+    console.error(`WARN seems you switched to a different network.`)
+    lastIndex = -1
+    contractsStore.setLastCheckedContractIndex(lastIndex)
+  }
+
   if (lastIndex == null || lastIndex == -1) {
     lastIndex = Math.max(-1, totalContracts - NUM_CONTRACTS_TO_CHECK_ON_FIRST_RUN - 1)
-  } else if (lastIndex >= totalContracts) {
-    console.error(`WARN seems you switched to a different network.`)
-    lastIndex = totalContracts - 1
-    contractsStore.setLastCheckedContractIndex(lastIndex)
   }
 
   let numContractsToCheck = totalContracts - 1 - lastIndex
@@ -154,8 +161,12 @@ async function checkNewContractsSinceLastStart(api) {
 }
 
 async function checkContractWithAddress(address, api) {
-  const instance = await api.LegacyContract.at(address)
-  return await checkContract(instance, api)
+  try {
+    const instance = await api.LegacyContract.at(address).then(x => x)
+    return checkContract(instance, api)
+  } catch (err) {
+    handleContractObtainingError(err, address)
+  }
 }
 
 async function checkContract(contract, api) {
@@ -383,5 +394,14 @@ function sanitizeKeeperConfig(keeperConfig) {
       privateKey: '<stripped for logs>',
     },
     contracts: ['<stripped for logs>'],
+  }
+}
+
+function handleContractObtainingError(err, address) {
+  if (/ no code at address /.test(err.message)) {
+    console.error(`WARN contract with address ${address} is not found`)
+    contractsStore.removeContract(address)
+  } else {
+    console.error(err.stack)
   }
 }
