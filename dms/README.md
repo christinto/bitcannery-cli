@@ -12,12 +12,14 @@ $ npm install
 $ node index.js
 ```
 
+Also, you'll need `geth` version `1.7.3` or later to run local test network.
+
 ## Setup
 
 Run `geth` in development mode to setup a local test network:
 
 ```sh
-$ cd truffle
+$ cd local-dev-net
 $ ./run-geth.sh
 ```
 
