@@ -13,6 +13,7 @@ import runCommand from '../utils/run-command'
 import toNumber from '../utils/to-number'
 import runInChunks from '../utils/run-in-chunks'
 import {config, updateConfig} from '../config'
+import {getGasPrice} from '../utils/web3'
 
 import contractsStore from './keeper/contracts-store'
 
@@ -213,11 +214,14 @@ async function sendProposal(contract, account) {
 
   await ensureUnlocked(account)
 
+  const gasPrice = await getGasPrice()
+
   const {txHash, txPriceWei} = await tx(
     contract.submitKeeperProposal(config.keeper.keypair.publicKey, keepingFee, {
       from: account,
-      gas: 4700000, // TODO: estimate gas
-    }),
+      gasPrice: gasPrice,
+      gas: 4700000,
+    })
   )
 
   console.error(`Done! Transaction hash: ${txHash}`)
@@ -266,11 +270,14 @@ async function handleActiveState(contract, api) {
 
   await ensureUnlocked(account)
 
+  const gasPrice = await getGasPrice()
+
   const {txHash, txPriceWei} = await tx(
     contract.keeperCheckIn({
       from: account,
-      gas: 4700000, // TODO: estimate gas
-    }),
+      gasPrice: gasPrice,
+      gas: 4700000,
+    })
   )
 
   printTx(txHash, keeper.balance, txPriceWei)
@@ -304,7 +311,7 @@ async function handleCallForKeysState(contract, {account}) {
   ]
 
   const activeKeepersAddresses = await Promise.all(
-    new Array(numKeepers).fill(0).map((_, i) => contract.activeKeepersAddresses(i)),
+    new Array(numKeepers).fill(0).map((_, i) => contract.activeKeepersAddresses(i))
   )
 
   const myIndex = activeKeepersAddresses.indexOf(account)
@@ -317,18 +324,21 @@ async function handleCallForKeysState(contract, {account}) {
     numKeepers,
     myIndex,
     config.keeper.keypair.privateKey,
-    keeper.keyPartHash,
+    keeper.keyPartHash
   )
 
   console.error(`Decrypted key part: ${keyPart}`)
 
   await ensureUnlocked(account)
 
+  const gasPrice = await getGasPrice()
+
   const {txHash, txPriceWei} = await tx(
     contract.supplyKey(keyPart, {
       from: account,
-      gas: 4700000, // TODO: estimate gas
-    }),
+      gasPrice: gasPrice,
+      gas: 4700000,
+    })
   )
 
   const received = keeper.balance.plus(keeper.keepingFee)
@@ -352,11 +362,14 @@ async function handleCancelledState(contract, {account}) {
 
   await ensureUnlocked(account)
 
+  const gasPrice = await getGasPrice()
+
   const {txHash, txPriceWei} = await tx(
     contract.keeperCheckIn({
       from: account,
-      gas: 4700000, // TODO: estimate gas
-    }),
+      gasPrice: gasPrice,
+      gas: 4700000,
+    })
   )
 
   printTx(txHash, keeper.balance, txPriceWei)
@@ -381,7 +394,7 @@ function printTx(txHash, received, txPrice) {
     `Done! Transaction hash: ${txHash}\n` +
       `Received ${formatWei(received)}, ` +
       `transaction fee ${formatWei(txPrice)}, ` +
-      `balance change ${formatWei(received.minus(txPrice))}`,
+      `balance change ${formatWei(received.minus(txPrice))}`
   )
 }
 

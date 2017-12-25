@@ -14,6 +14,7 @@ import readFile from '../utils/read-file'
 import delay from '../utils/delay'
 import print, {question, ynQuestion} from '../utils/print'
 import UserError from '../utils/user-error'
+import {getGasPrice} from '../utils/web3'
 
 // Fail if tx is going to take more gas than this.
 //
@@ -58,31 +59,35 @@ async function deploy(pathToFile) {
       `${privateKey}\n\n` +
       `Check-in every ${CHECKIN_INTERVAL_SEC / 60} minutes.\n` +
       `Your contract will be secured by ${NUM_KEEPERS} keepers.\n\n` +
-      `Publishing a new contract...`,
+      `Publishing a new contract...`
   )
+
+  let gasPrice = await getGasPrice()
 
   const instance = await LegacyContract.new(CHECKIN_INTERVAL_SEC, {
     from: address,
-    gas: GAS_HARD_LIMIT, // TODO: estimate gas usage
+    gasPrice: gasPrice,
+    gas: GAS_HARD_LIMIT,
   })
 
   print(
     `Contract is published.\n` +
       `Contract address is ${instance.address}\n\n` +
-      `Registering contract...`,
+      `Registering contract...`
   )
 
   const registerTxResult = await tx(
     registry.addContract(contractId, instance.address, {
       from: address,
-      gas: GAS_HARD_LIMIT, // TODO: estimate gas usage
-    }),
+      gasPrice: gasPrice,
+      gas: GAS_HARD_LIMIT,
+    })
   )
 
   print(
     `Done! Transaction hash: ${registerTxResult.txHash}\n` +
       `Paid for transaction: ${formatWei(registerTxResult.txPriceWei)}\n\n` +
-      `System is calling for keepers, this might take some time...\n`,
+      `System is calling for keepers, this might take some time...\n`
   )
 
   let numKeepersProposals = (await instance.getNumProposals()).toNumber()
@@ -108,7 +113,7 @@ async function deploy(pathToFile) {
   const doActivate = ynQuestion(
     `\nYou have enough keepers now.\n` +
       `You will pay ${formatWei(activationPrice)} for each check-in interval. ` +
-      `Do you want to activate the contract?`,
+      `Do you want to activate the contract?`
   )
 
   if (!doActivate) {
@@ -127,12 +132,14 @@ async function deploy(pathToFile) {
     legacyData,
     publicKey,
     keeperPublicKeys,
-    numKeepersToRecover,
+    numKeepersToRecover
   )
 
   // console.error('encryptionResult:', encryptionResult)
 
   print(`Activating contract...`)
+
+  gasPrice = await getGasPrice()
 
   const acceptTxResult = await tx(
     instance.acceptKeepers(
@@ -145,15 +152,16 @@ async function deploy(pathToFile) {
       encryptionResult.aesCounter,
       {
         from: address,
-        gas: GAS_HARD_LIMIT, // TODO: estimate gas usage
+        gasPrice: gasPrice,
+        gas: GAS_HARD_LIMIT,
         value: activationPrice,
-      },
-    ),
+      }
+    )
   )
 
   print(
     `Done! Transaction hash: ${acceptTxResult.txHash}\n` +
-      `Paid for transaction: ${formatWei(acceptTxResult.txPriceWei)}`,
+      `Paid for transaction: ${formatWei(acceptTxResult.txPriceWei)}`
   )
 
   const state = await instance.state()
@@ -167,7 +175,7 @@ async function obtainNewContractName(registry) {
     let name = await obtainRandomName(registry)
     const useRandomName = ynQuestion(
       `The automatically-generated random name for this contract is "${name}". ` +
-        `Do you want to use it?`,
+        `Do you want to use it?`
     )
     if (useRandomName) {
       return name
@@ -176,7 +184,7 @@ async function obtainNewContractName(registry) {
     console.error()
 
     name = question.demandAnswer(
-      `Please enter name for this contract (enter "g" to generate new random name):`,
+      `Please enter name for this contract (enter "g" to generate new random name):`
     )
     if (name === 'g') {
       continue
@@ -186,7 +194,7 @@ async function obtainNewContractName(registry) {
       console.error()
       name = question.demandAnswer(
         `Unfortunately, there is already a contract with this name in the system. ` +
-          `Please enter another name (enter "g" to generate new random name):`,
+          `Please enter another name (enter "g" to generate new random name):`
       )
       if (name === 'g') {
         break

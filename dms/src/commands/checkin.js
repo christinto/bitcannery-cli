@@ -8,6 +8,7 @@ import {formatWei} from '../utils/format'
 import {States} from '../utils/contract-api'
 import tx from '../utils/tx'
 import runCommand from '../utils/run-command'
+import {getGasPrice} from '../utils/web3'
 
 const GAS_HARD_LIMIT = 4700000
 
@@ -60,13 +61,10 @@ export async function checkIn(contractAddressOrID) {
     return
   }
 
-  const checkInDuration = moment
-    .duration(checkInIntervalInSec, 's')
-    .humanize()
-    .replace(/^a /, '')
+  const checkInDuration = moment.duration(checkInIntervalInSec, 's').humanize().replace(/^a /, '')
 
   const readyToPayForCheckIn = readlineSync.question(
-    `Send keeeping fees for the next ${checkInDuration} (${formatWei(checkInPrice)})? [Y/n] `,
+    `Send keeeping fees for the next ${checkInDuration} (${formatWei(checkInPrice)})? [Y/n] `
   )
 
   if (!yn(readyToPayForCheckIn)) {
@@ -75,21 +73,19 @@ export async function checkIn(contractAddressOrID) {
 
   // TODO: check owner account balance
 
+  const gasPrice = await getGasPrice()
+
   const {txHash, txPriceWei} = await tx(
     instance.ownerCheckIn({
       from: address,
-      gas: GAS_HARD_LIMIT, // TODO: estimate gas usage
+      gas: GAS_HARD_LIMIT,
+      gasPrice: gasPrice,
       value: checkInPrice,
-    }),
+    })
   )
 
   console.error(`Done! Transaction hash: ${txHash}`)
   console.error(`Paid for transaction: ${formatWei(txPriceWei)}\n`)
   console.error(`See you next time!`)
-  console.error(
-    'The next check-in:',
-    moment()
-      .add(checkInIntervalInSec, 's')
-      .fromNow(),
-  )
+  console.error('The next check-in:', moment().add(checkInIntervalInSec, 's').fromNow())
 }
