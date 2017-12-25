@@ -4,6 +4,8 @@ const commandNames = [
   'status',
   'deploy',
   'checkin',
+  'export-config',
+  'import-config',
   'decrypt',
   'keeper',
   'set-fee',

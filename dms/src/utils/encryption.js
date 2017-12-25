@@ -273,4 +273,6 @@ module.exports = {
   encryptData,
   decryptData,
   decryptKeeperShare,
+  aesEncrypt,
+  aesDecrypt,
 }
