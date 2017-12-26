@@ -8,7 +8,7 @@ You'll need Node.js v8 or later.
 $ cd dms
 $ npm install
 
-# This is a nop at the moment; just checking that it runs
+# Just checking that it runs
 $ node index.js
 ```
 
@@ -23,7 +23,7 @@ $ cd local-dev-net
 $ ./run-geth.sh
 ```
 
-Alternatively, you can run geth manually and connect to ropsten or live network. In this case, make sure to pass these arguments to make it listen for RPC connections:
+Alternatively, you can run `geth` manually and connect to `ropsten` or `main` network. In this case, make sure to pass these arguments to make it listen for RPC connections:
 
 ```
 --rpc --rpcapi="db,eth,net,web3,personal" --rpcport "8545" --rpcaddr "127.0.0.1"
@@ -31,75 +31,127 @@ Alternatively, you can run geth manually and connect to ropsten or live network.
 
 There are 9 accounts pre-generated on local development network. We'll use first one for Alice, and the next three for keepers.
 
-Application uses config file to store configuration (see [here](dms/src/config.js#L13) for default configuration). Config files are stored in an OS-dependent location, which is printed when app starts.
+Application supports having multiple configurations per machine. You can specify which config to use by setting `CONFIG_NAME` environment variable. This is mainly for development/testing purposes; we'll use this feature to run clients for Alice and three keepers on the same machine.
 
-Application supports having multiple configurations per machine. You can specify which config to use by setting `CONFIG_NAME` environment variable. We'll use this feature to run clients for Alice and three keepers on the same machine.
+When you run `geth` using `run-geth` command, it starts RPC server on `http://localhost:9545`, which is a non-default port to prevent collision with your main `geth` instance. We need to tell our application to connect to this port instead of the default one. You can do it using `set-client-options` command:
 
-Let's setup three configurations for different keepers:
+```
+$ node index.js set-client-options --rpc-connection 'http://localhost:9545'
+JSON-RPC connection string set to: http://localhost:9545
+```
+
+We don't specity `CONFIG_NAME` when running Alice's client, so it uses the default config with account index 0.
+
+Now let's setup three configurations for different keepers:
 
 ```sh
 $ cd dms
-$ CONFIG_NAME=keeper-1 node index.js
-Using config file: ~/Library/Preferences/dms-nodejs/keeper-1.json
+
+# In terminal 1:
+#
+$ export CONFIG_NAME=keeper-1
+$
+$ node index.js set-client-options --rpc-connection 'http://localhost:9545' --account-index 1
+
+Account index set to: 1
+JSON-RPC connection string set to: http://localhost:9545
+
+# In terminal 2:
+#
+$ export CONFIG_NAME=keeper-2
+$
+$ node index.js set-client-options --rpc-connection 'http://localhost:9545' --account-index 2
+
+Account index set to: 2
+JSON-RPC connection string set to: http://localhost:9545
+
+# In terminal 3:
+#
+$ export CONFIG_NAME=keeper-3
+$
+$ node index.js set-client-options --rpc-connection 'http://localhost:9545' --account-index 3
+
+Account index set to: 3
+JSON-RPC connection string set to: http://localhost:9545
 ```
-
-This will generate `keeper-1.json` config file containing default configuration, and also containing a unique keeper keypair. Since we'll use account with index `0` for Alice, let's edit `keeper-1.json` and change account index to `1`:
-
-```text
-$ vim ~/Library/Preferences/dms-nodejs/keeper-1.json
-{
-  "rpcConnection": "http://localhost:8545",
-  "accountIndex": 1,
-  "keeper": {
-    ...
-  }
-}
-```
-
-Repeat the same for keeper 2 (`CONFIG_NAME=keeper-2`, `accountIndex: 2`) and keeper 3 (`CONFIG_NAME=keeper-3`, `accountIndex: 3`).
-
-We won't specity `CONFIG_NAME` when running Alice's client, so it will use config with name `default` with `accountIndex: 0`, which is the default setting.
 
 
 ## Happy Path
 
+Open three different terminals and run keepers:
+
+```sh
+# In terminal 1:
+#
+$ node index.js keeper
+
+# In terminal 2:
+#
+$ node index.js keeper
+
+# In terminal 3:
+#
+$ node index.js keeper
+```
+
 Open a new terminal and run Alice's client to deploy a contract:
 
-```sh
-$ echo 'The answer is 42' > sample_legacy.txt
+```text
 $ node index.js deploy -f sample_legacy.txt
-...
-Generated Bob's private key... (you must give it to Bob)
-0x2f0d197dc3a62fc8c23cc19c55c1efe85615f87229fd9c304bd43110a3d01a26
+Welcome to KeeperNet v2!
 
-Check-in every 2 minutes
-Your contract will be secured by 3 keepers
+Address 0x8bff9474cfb5ab51b0710cdee6f54eed65f1b5f9 will be used to create a new
+contract.
+
+The automatically-generated random name for this contract is
+"sleepy_shirley_29". Do you want to use it? [Y/n] y
+
+Generated Bob's private key. You must send it to Bob using secure channel. If
+you don't give it to Bob, he won't be able to decrypt the data. If you transfer
+it using non-secure channel, anyone will be able to decrypt the data:
+
+0x4d3ec6083fa31aefb8a6a3f2e5e4bed54a8de796ef76ff2e70786fbeec0632ce
+
+Check-in every 1 minutes.
+Your contract will be secured by 3 keepers.
+
 Publishing a new contract...
 Contract is published.
-Contract address is 0xfd8351c59cfd8bd4f332426cbe0734ec6bf17ce0
+Contract address is 0x9b30b988365ed570553a4a58928c9a1723e5d0cc
 
+Registering contract...
+Done! Transaction hash:
+0x72bec67ae811e77db7c7b4c4ffba3da28a2bb3ac64f1a298505402529bee538c
+Paid for transaction: 122140 wei
+
+System is calling for keepers, this might take some time...
 ```
 
-We'll need two things from this output: address of the contract and Bob's private key. Now, open three more terminals and run keepers:
+Later we'll need two things from this output: name of the contract and Bob's private key. Watch keepers join:
 
-```sh
-$ CONFIG_NAME=keeper-1 node index.js keeper -c 0xfd8351c59cfd8bd4f332426cbe0734ec6bf17ce0
-$ CONFIG_NAME=keeper-2 node index.js keeper -c 0xfd8351c59cfd8bd4f332426cbe0734ec6bf17ce0
-$ CONFIG_NAME=keeper-3 node index.js keeper -c 0xfd8351c59cfd8bd4f332426cbe0734ec6bf17ce0
+```
+2 keepers have joined...
+3 keepers have joined...
+
+You have enough keepers now.
+You will pay 694.444444443 Gwei for each check-in interval. Do you want to
+activate the contract? [Y/n] y
+Activating contract...
+Done! Transaction hash:
+0xe96eaef5b54da28d4a5da7a42b28600b2bdfc5d98eb6bcfc15675cda69af59ff
+Paid for transaction: 1290395 wei
 ```
 
-Right now each keeper can only handle one contract which is passed using `-c` option. This will be changed in the next iteration.
-
-Switch back to Alice's terminal and activate the contract by anwsering `Y`. Alice should check-in at least once in 2 minutes (this is hard-coded in this iteration):
+Activate the contract by anwsering `Y`. Alice should check-in at least once in a minute (this is hard-coded in this iteration):
 
 ```sh
-$ node index.js checkin -c 0xfd8351c59cfd8bd4f332426cbe0734ec6bf17ce0
+$ node index.js checkin -c sleepy_shirley_29
 ```
 
 You can check status of a contract using `status` command:
 
 ```sh
-$ node index.js status -c 0xfd8351c59cfd8bd4f332426cbe0734ec6bf17ce0
+$ node index.js status -c sleepy_shirley_29
 ```
 
 Keepers will check in right after Alice checks in, or when Alice failed to check in in time.
@@ -107,5 +159,5 @@ Keepers will check in right after Alice checks in, or when Alice failed to check
 Stop performing check-ins by Alice for at least 2 minutes and watch keepers decrypt and submit their key parts. Now Bob can decrypt the legacy:
 
 ```sh
-$ node index.js decrypt -c 0xfd8351c59cfd8bd4f332426cbe0734ec6bf17ce0
+$ node index.js decrypt -c sleepy_shirley_29
 ```
