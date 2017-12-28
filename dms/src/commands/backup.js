@@ -6,14 +6,14 @@ import Crypto from 'crypto'
 import Stream from 'stream'
 import fs from 'fs'
 
-export const command = 'export-config [path-to-file]'
+export const command = 'backup [path-to-file]'
 
-export const desc = 'Export config'
+export const desc = 'Backup config'
 
 // prettier-ignore
 export const builder = yargs => yargs
   .positional('pathToFile', {
-    desc: 'Path to the file. If not specified, encrypted config will be printed to STDOUT.',
+    desc: 'Path to the output file. If not specified, encrypted config will be printed to STDOUT.',
     normalize: true,
   })
 

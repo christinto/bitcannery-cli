@@ -6,14 +6,14 @@ import Crypto from 'crypto'
 import Stream from 'stream'
 import fs from 'fs'
 
-export const command = 'import-config <path-to-file>'
+export const command = 'restore <path-to-file>'
 
-export const desc = 'Import config'
+export const desc = 'Restore config'
 
 // prettier-ignore
 export const builder = yargs => yargs
   .positional('pathToFile', {
-    desc: 'Path to the encrypted config',
+    desc: 'Path to the encrypted config file',
     normalize: true,
   })
 
