@@ -1,11 +1,3 @@
-import {persistentConfig} from '../config'
-import runCommand from '../utils/run-command'
-import print, {question} from '../utils/print'
-import {aesDecrypt} from '../utils/encryption'
-import Crypto from 'crypto'
-import Stream from 'stream'
-import fs from 'fs'
-
 export const command = 'restore <path-to-file>'
 
 export const desc = 'Restore config'
@@ -16,6 +8,16 @@ export const builder = yargs => yargs
     desc: 'Path to the encrypted config file',
     normalize: true,
   })
+
+// Implementation
+
+import {persistentConfig} from '../config'
+import runCommand from '../utils/run-command'
+import print, {question} from '../utils/print'
+import {aesDecrypt} from '../utils/encryption'
+import Crypto from 'crypto'
+import Stream from 'stream'
+import fs from 'fs'
 
 export async function handler(argv) {
   return runCommand(() => importConfig(argv.pathToFile))

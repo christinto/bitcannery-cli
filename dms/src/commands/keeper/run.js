@@ -1,3 +1,11 @@
+export const command = ['run', '$0']
+
+export const desc = 'Run Keeper node'
+
+export const builder = {}
+
+// Implementation
+
 import BigNumber from 'bignumber.js'
 import assert from 'assert'
 
@@ -16,12 +24,6 @@ import throttle from '../../utils/throttle'
 import {config, updateConfig} from '../../config'
 
 import contractsStore from './utils/contracts-store'
-
-export const command = ['run', '$0']
-
-export const desc = 'Run Keeper node'
-
-export const builder = {}
 
 export async function handler(argv) {
   await runCommand(() => runKeeper())

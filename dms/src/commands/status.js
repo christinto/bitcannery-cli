@@ -1,10 +1,3 @@
-import moment from 'moment'
-import getWeb3 from '../utils/get-web3'
-import getContractInstance from '../utils/get-contract-instance'
-import {States} from '../utils/contract-api'
-import {formatWei} from '../utils/format'
-import runCommand from '../utils/run-command'
-
 export const command = 'status <contract>'
 
 export const desc = 'Display the status of given legacy contract'
@@ -14,6 +7,15 @@ export const builder = yargs => yargs
   .positional('contract', {
     desc: 'Contract ID or address',
   })
+
+// Implementation
+
+import moment from 'moment'
+import getWeb3 from '../utils/get-web3'
+import getContractInstance from '../utils/get-contract-instance'
+import {States} from '../utils/contract-api'
+import {formatWei} from '../utils/format'
+import runCommand from '../utils/run-command'
 
 export function handler(argv) {
   return runCommand(() => getStatus(argv.contract))

@@ -1,6 +1,3 @@
-import {persistentConfig} from '../config'
-import runCommand from '../utils/run-command'
-
 export const command = 'set-client-options'
 
 export const desc = 'Set options for connecting to Ethereum client'
@@ -30,6 +27,11 @@ function validate(argv) {
   }
   return true
 }
+
+// Implementation
+
+import {persistentConfig} from '../config'
+import runCommand from '../utils/run-command'
 
 export async function handler(argv) {
   return runCommand(() => setAccountIndex(argv.accountIndex, argv.rpcConnection))

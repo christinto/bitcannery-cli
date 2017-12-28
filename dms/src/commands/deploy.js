@@ -1,3 +1,16 @@
+export const command = 'deploy <path-to-file>'
+
+export const desc = 'Start new legacy contract'
+
+// prettier-ignore
+export const builder = yargs => yargs
+  .positional('pathToFile', {
+    desc: 'Path to file to encrypt',
+    normalize: true,
+  })
+
+// Implementation
+
 import assert from 'assert'
 import dockerNames from 'docker-names'
 import BigNumber from 'bignumber.js'
@@ -15,17 +28,6 @@ import print, {question, ynQuestion} from '../utils/print'
 
 const NUM_KEEPERS = 3
 const CHECKIN_INTERVAL_SEC = 1 * 60
-
-export const command = 'deploy <path-to-file>'
-
-export const desc = 'Start new legacy contract'
-
-// prettier-ignore
-export const builder = yargs => yargs
-  .positional('pathToFile', {
-    desc: 'Path to file to encrypt',
-    normalize: true,
-  })
 
 export function handler(argv) {
   return runCommand(() => deploy(argv.pathToFile))

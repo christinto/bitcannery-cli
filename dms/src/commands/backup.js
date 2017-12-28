@@ -1,11 +1,3 @@
-import {persistentConfig} from '../config'
-import runCommand from '../utils/run-command'
-import print, {question} from '../utils/print'
-import {aesEncrypt} from '../utils/encryption'
-import Crypto from 'crypto'
-import Stream from 'stream'
-import fs from 'fs'
-
 export const command = 'backup [path-to-file]'
 
 export const desc = 'Backup config'
@@ -16,6 +8,16 @@ export const builder = yargs => yargs
     desc: 'Path to the output file. If not specified, encrypted config will be printed to STDOUT.',
     normalize: true,
   })
+
+// Implementation
+
+import {persistentConfig} from '../config'
+import runCommand from '../utils/run-command'
+import print, {question} from '../utils/print'
+import {aesEncrypt} from '../utils/encryption'
+import Crypto from 'crypto'
+import Stream from 'stream'
+import fs from 'fs'
 
 export async function handler(argv) {
   return runCommand(() => exportConfig(argv.pathToFile))

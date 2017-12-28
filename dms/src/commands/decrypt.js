@@ -1,10 +1,3 @@
-import readlineSync from 'readline-sync'
-
-import getContractInstance from '../utils/get-contract-instance'
-import {generateKeyPair, decryptData} from '../utils/encryption'
-import {States, assembleEncryptedDataStruct} from '../utils/contract-api'
-import runCommand from '../utils/run-command'
-
 export const command = 'decrypt <contract>'
 
 export const desc = 'Decrypt the legacy'
@@ -14,6 +7,15 @@ export const builder = yargs => yargs
   .positional('contract', {
     desc: 'Contract ID or address'
   })
+
+// Implementation
+
+import readlineSync from 'readline-sync'
+
+import getContractInstance from '../utils/get-contract-instance'
+import {generateKeyPair, decryptData} from '../utils/encryption'
+import {States, assembleEncryptedDataStruct} from '../utils/contract-api'
+import runCommand from '../utils/run-command'
 
 export function handler(argv) {
   return runCommand(() => decrypt(argv.contract))

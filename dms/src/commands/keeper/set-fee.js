@@ -1,9 +1,3 @@
-import {persistentConfig} from '../../config'
-import etherUnits from '../../utils/ether-units'
-import runCommand from '../../utils/run-command'
-import getWeb3 from '../../utils/get-web3'
-import {wrap} from '../../utils/print'
-
 export const command = 'set-fee <fee> [unit]'
 
 export const desc = 'Set keeping fee per contract-month for new contracts'
@@ -31,6 +25,14 @@ function validateArgs(argv) {
   }
   return true
 }
+
+// Implementation
+
+import {persistentConfig} from '../../config'
+import etherUnits from '../../utils/ether-units'
+import runCommand from '../../utils/run-command'
+import getWeb3 from '../../utils/get-web3'
+import {wrap} from '../../utils/print'
 
 export async function handler(argv) {
   return runCommand(() => setFee(argv.fee, argv.unit))
