@@ -5,16 +5,15 @@ import {States} from '../utils/contract-api'
 import {formatWei} from '../utils/format'
 import runCommand from '../utils/run-command'
 
-export const description = 'Display the status of given legacy contract'
+export const command = 'status <contract>'
 
-export function yargsBuilder(yargs) {
-  return yargs
-    .example('$0 status -c contract_id', 'Display the status of a given contract')
-    .alias('c', 'contract')
-    .nargs('c', 1)
-    .describe('c', 'ID or address of a contract')
-    .demandOption(['c'])
-}
+export const desc = 'Display the status of given legacy contract'
+
+// prettier-ignore
+export const builder = yargs => yargs
+  .positional('contract', {
+    desc: 'Contract ID or address',
+  })
 
 export function handler(argv) {
   return runCommand(() => getStatus(argv.contract))

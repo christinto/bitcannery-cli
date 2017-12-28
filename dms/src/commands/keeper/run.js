@@ -1,26 +1,30 @@
 import BigNumber from 'bignumber.js'
 import assert from 'assert'
 
-import {States, assembleKeeperStruct, assembleEncryptedDataStruct} from '../utils/contract-api'
-import getContractAPIs from '../utils/get-contract-apis'
-import {getLatestBlock} from '../utils/web3'
-import {formatWei} from '../utils/format'
-import unlockAccount, {isAccountLocked} from '../utils/unlock-account'
-import {contractTx} from '../utils/tx'
-import encryptionUtils from '../utils/encryption'
-import delay from '../utils/delay'
-import runCommand from '../utils/run-command'
-import toNumber from '../utils/to-number'
-import runInChunks from '../utils/run-in-chunks'
-import throttle from '../utils/throttle'
-import {config, updateConfig} from '../config'
+import {States, assembleKeeperStruct, assembleEncryptedDataStruct} from '../../utils/contract-api'
+import getContractAPIs from '../../utils/get-contract-apis'
+import {getLatestBlock} from '../../utils/web3'
+import {formatWei} from '../../utils/format'
+import unlockAccount, {isAccountLocked} from '../../utils/unlock-account'
+import {contractTx} from '../../utils/tx'
+import encryptionUtils from '../../utils/encryption'
+import delay from '../../utils/delay'
+import runCommand from '../../utils/run-command'
+import toNumber from '../../utils/to-number'
+import runInChunks from '../../utils/run-in-chunks'
+import throttle from '../../utils/throttle'
+import {config, updateConfig} from '../../config'
 
-import contractsStore from './keeper/contracts-store'
+import contractsStore from './utils/contracts-store'
 
-export const description = 'Run Keeper node'
+export const command = ['run', '$0']
 
-export function yargsBuilder(yargs) {
-  return yargs.example('$0 keeper', 'Run keeper node')
+export const desc = 'Run Keeper node'
+
+export const builder = {}
+
+export async function handler(argv) {
+  await runCommand(() => runKeeper())
 }
 
 const SECONDS_IN_MONTH = 60 * 60 * 24 * 30
@@ -30,10 +34,6 @@ const SECONDS_IN_MONTH = 60 * 60 * 24 * 30
 const NUM_CONTRACTS_TO_CHECK_ON_FIRST_RUN = 100
 const MAX_CONTRACTS_TO_CHECK_SINCE_LAST_RUN = 100
 const PROCESS_N_CONTRACTS_IN_PARALLEL = 10
-
-export async function handler(argv) {
-  await runCommand(() => runKeeper())
-}
 
 // TODO: currently, if you set account index in config (e.g. using set-client-options command)
 // while keeper node is running, the node will still use the old account until restarted.

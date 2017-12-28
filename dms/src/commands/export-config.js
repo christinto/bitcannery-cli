@@ -6,18 +6,19 @@ import Crypto from 'crypto'
 import Stream from 'stream'
 import fs from 'fs'
 
-export const description = 'Export config'
+export const command = 'export-config [path-to-file]'
 
-export function yargsBuilder(yargs) {
-  return yargs
-    .example('$0 export-config -o <path-to-file>', 'Export config')
-    .alias('o', 'output')
-    .describe('o', 'path to save the config')
-    .normalize('o')
-}
+export const desc = 'Export config'
+
+// prettier-ignore
+export const builder = yargs => yargs
+  .positional('pathToFile', {
+    desc: 'Path to the file. If not specified, encrypted config will be printed to STDOUT.',
+    normalize: true,
+  })
 
 export async function handler(argv) {
-  return runCommand(() => exportConfig(argv.o))
+  return runCommand(() => exportConfig(argv.pathToFile))
 }
 
 function exportConfig(destination) {
@@ -28,7 +29,7 @@ function exportConfig(destination) {
   const encryptedConfig = encryptConfig(config, password)
   pipeEncryptedConfig(
     encryptedConfig,
-    destination ? fs.createWriteStream(destination) : process.stdout
+    destination ? fs.createWriteStream(destination) : process.stdout,
   )
   print(`Config successfully exported ${destination ? 'to ' : ''} ${destination || ''}`)
 }
@@ -54,7 +55,7 @@ function encryptConfig(configStream, passwordStream) {
   return aesEncrypt(
     configStream,
     passwordStream,
-    Buffer.from('6d2c3bb44c10d7351678c05bad33ad0a', 'hex')
+    Buffer.from('6d2c3bb44c10d7351678c05bad33ad0a', 'hex'),
   )
 }
 

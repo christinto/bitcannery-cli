@@ -5,16 +5,15 @@ import {generateKeyPair, decryptData} from '../utils/encryption'
 import {States, assembleEncryptedDataStruct} from '../utils/contract-api'
 import runCommand from '../utils/run-command'
 
-export const description = 'Decrypt the legacy'
+export const command = 'decrypt <contract>'
 
-export function yargsBuilder(yargs) {
-  return yargs
-    .example('$0 decrypt -c contract_id', 'Decrypt the legacy')
-    .alias('c', 'contract')
-    .nargs('c', 1)
-    .describe('c', 'ID or address of a contract')
-    .demandOption(['c'])
-}
+export const desc = 'Decrypt the legacy'
+
+// prettier-ignore
+export const builder = yargs => yargs
+  .positional('contract', {
+    desc: 'Contract ID or address'
+  })
 
 export function handler(argv) {
   return runCommand(() => decrypt(argv.contract))

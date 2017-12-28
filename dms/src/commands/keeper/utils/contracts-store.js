@@ -1,4 +1,4 @@
-import {config, persistentConfig} from '../../config'
+import {config, persistentConfig} from '../../../config'
 
 let contracts = []
 let addresses = {}

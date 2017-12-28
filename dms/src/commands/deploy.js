@@ -16,19 +16,19 @@ import print, {question, ynQuestion} from '../utils/print'
 const NUM_KEEPERS = 3
 const CHECKIN_INTERVAL_SEC = 1 * 60
 
-export const description = 'Deploy new legacy contract to blockchain'
+export const command = 'deploy <path-to-file>'
 
-export function yargsBuilder(yargs) {
-  return yargs
-    .example('$0 deploy -f <path-to-file>', 'Deploy new legacy contract')
-    .alias('f', 'file')
-    .nargs('f', 1)
-    .describe('f', 'Specify file to encrypt')
-    .demandOption(['f'])
-}
+export const desc = 'Start new legacy contract'
+
+// prettier-ignore
+export const builder = yargs => yargs
+  .positional('pathToFile', {
+    desc: 'Path to file to encrypt',
+    normalize: true,
+  })
 
 export function handler(argv) {
-  return runCommand(() => deploy(argv.file))
+  return runCommand(() => deploy(argv.pathToFile))
 }
 
 async function deploy(pathToFile) {

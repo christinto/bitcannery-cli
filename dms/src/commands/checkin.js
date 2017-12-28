@@ -8,16 +8,15 @@ import {contractTx} from '../utils/tx'
 import {print, ynQuestion} from '../utils/print'
 import runCommand from '../utils/run-command'
 
-export const description = 'Owner check-in'
+export const command = 'checkin <contract>'
 
-export function yargsBuilder(yargs) {
-  return yargs
-    .example('$0 checkin -c contract_id', 'Owner check-in')
-    .alias('c', 'contract')
-    .nargs('c', 1)
-    .describe('c', 'ID or address of a contract')
-    .demandOption(['c'])
-}
+export const desc = 'Perform owner check-in'
+
+// prettier-ignore
+export const builder = yargs => yargs
+  .positional('contract', {
+    desc: 'Contract ID or address'
+  })
 
 export function handler(argv) {
   return runCommand(() => checkIn(argv.contract))

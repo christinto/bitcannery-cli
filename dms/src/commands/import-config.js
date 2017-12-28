@@ -6,18 +6,19 @@ import Crypto from 'crypto'
 import Stream from 'stream'
 import fs from 'fs'
 
-export const description = 'Import config'
+export const command = 'import-config <path-to-file>'
 
-export function yargsBuilder(yargs) {
-  return yargs
-    .example('$0 import-config -f <path-to-file>', 'Import config')
-    .alias('f', 'file')
-    .describe('f', 'path to the config')
-    .normalize('f')
-}
+export const desc = 'Import config'
+
+// prettier-ignore
+export const builder = yargs => yargs
+  .positional('pathToFile', {
+    desc: 'Path to the encrypted config',
+    normalize: true,
+  })
 
 export async function handler(argv) {
-  return runCommand(() => importConfig(argv.f))
+  return runCommand(() => importConfig(argv.pathToFile))
 }
 
 function importConfig(source) {
@@ -58,7 +59,7 @@ async function decryptConfig(encryptedStream, passwordBuffer) {
   const decryptedConfigString = aesDecrypt(
     configString,
     passwordString,
-    Buffer.from('6d2c3bb44c10d7351678c05bad33ad0a', 'hex')
+    Buffer.from('6d2c3bb44c10d7351678c05bad33ad0a', 'hex'),
   )
   return JSON.parse(Buffer.from(decryptedConfigString, 'hex').toString('utf8'))
 }

@@ -1,32 +1,31 @@
 import {persistentConfig} from '../config'
 import runCommand from '../utils/run-command'
 
-export const description = 'Set options for connecting to Ethereum client'
+export const command = 'set-client-options'
 
-export function yargsBuilder(yargs) {
-  return yargs
-    .example(
-      '$0 set-client-options -a <account-index> -c <rpc-connection>',
-      'Set connection options',
-    )
-    .describe('a', 'Account index to use')
-    .alias('a', 'account-index')
-    .number('a')
-    .nargs('a', 1)
-    .describe('c', 'JSON-RPC connection string, e.g. http://localhost:8545')
-    .alias('c', 'rpc-connection')
-    .nargs('c', 1)
-    .check(validate)
-}
+export const desc = 'Set options for connecting to Ethereum client'
+
+// prettier-ignore
+export const builder = yargs => yargs
+  .option('account-index', {
+    alias: 'a',
+    number: true,
+    nargs: 1,
+  })
+  .option('rpc-connection', {
+    alias: 'c',
+    nargs: 1,
+  })
+  .check(validate)
 
 function validate(argv) {
-  if (argv.a == null && argv.c == null) {
+  if (argv.accountIndex == null && argv.rpcConnection == null) {
     throw new Error(`Please pass at least one option.`)
   }
-  if (argv.a != null && isNaN(argv.a)) {
+  if (argv.accountIndex != null && isNaN(argv.accountIndex)) {
     throw new Error(`Account index must be a number.`)
   }
-  if (argv.c != null && !/^https?:[/][/]/.test(argv.c)) {
+  if (argv.rpcConnection != null && !/^https?:[/][/]/.test(argv.rpcConnection)) {
     throw new Error(`JSON-RPC connection string must be an URL.`)
   }
   return true
