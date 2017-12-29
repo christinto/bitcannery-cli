@@ -23,11 +23,11 @@ export async function handler(argv) {
   return runCommand(() => importConfig(argv.pathToFile))
 }
 
-function importConfig(source) {
+async function importConfig(source) {
   const userPassword = question.demandAnswer(`Please enter password for the config:`)
   const password = makeStrongAesPassword(userPassword)
   const encryptedConfig = readEncryptedConfig(source)
-  const decryptedConfig = decryptConfig(encryptedConfig, password)
+  const decryptedConfig = await decryptConfig(encryptedConfig, password)
   saveDecryptedConfig(decryptedConfig)
   print(`Config successfully imported from ${source}`)
 }
