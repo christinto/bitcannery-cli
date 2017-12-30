@@ -19,6 +19,10 @@ export function getGasPrice() {
   return promisifyCall(web3.eth.getGasPrice, web3.eth)
 }
 
+export function getBalance(address) {
+  return web3.eth.getBalance(address)
+}
+
 export function sign(address, data) {
   return promisifyCall(web3.eth.sign, web3.eth, [address, data])
 }

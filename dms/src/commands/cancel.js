@@ -18,6 +18,7 @@ import {formatWei} from '../utils/format'
 import {States} from '../utils/contract-api'
 import {contractTx} from '../utils/tx'
 import {print, ynQuestion} from '../utils/print'
+import {getBalance} from '../utils/web3'
 import runCommand from '../utils/run-command'
 
 export function handler(argv) {
@@ -63,8 +64,6 @@ export async function cancel(contractAddressOrID) {
 
   const cancelPrice = state === States.Active ? checkInPrice : 0
 
-  // TODO: check owner account balance
-
   const txResult = await contractTx(instance, 'cancel', {
     from: address,
     value: cancelPrice,
@@ -75,6 +74,18 @@ export async function cancel(contractAddressOrID) {
         .replace(/^a /, '')
       const txFee = gas.times(gasPrice)
       const combinedFee = txFee.plus(cancelPrice)
+
+      const actualBalance = getBalance(address)
+      const difference = actualBalance.minus(combinedFee)
+
+      if (difference.lessThan(0)) {
+        print(`\nCouldn't cancel contract due to low balance.\n`+
+          `  Cancelling will cost you ${formatWei(combinedFee)}\n`+
+          `  and you've got only ${formatWei(actualBalance)}.\n`+
+          `  Please, add ${formatWei(difference.abs())} to your account and try again.`)
+        return false
+      }
+
       const proceed = ynQuestion(
         `\nCancelling contract will cost you ${formatWei(combinedFee)}:\n` +
           `  transaction cost: ${formatWei(txFee)}.\n\n` +
