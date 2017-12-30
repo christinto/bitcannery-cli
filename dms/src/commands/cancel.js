@@ -1,6 +1,6 @@
-export const command = 'checkin <contract>'
+export const command = 'cancel <contract>'
 
-export const desc = 'Perform owner check-in'
+export const desc = 'Cancel legacy contract'
 
 // prettier-ignore
 export const builder = yargs => yargs
@@ -21,10 +21,10 @@ import {print, ynQuestion} from '../utils/print'
 import runCommand from '../utils/run-command'
 
 export function handler(argv) {
-  return runCommand(() => checkIn(argv.contract))
+  return runCommand(() => cancel(argv.contract))
 }
 
-export async function checkIn(contractAddressOrID) {
+export async function cancel(contractAddressOrID) {
   const address = await unlockAccount()
 
   print(`Current account address: ${address}`)
@@ -33,14 +33,14 @@ export async function checkIn(contractAddressOrID) {
   const [state, owner] = [(await instance.state()).toNumber(), await instance.owner()]
 
   if (owner !== address) {
-    console.error(`Only contract owner can perform check-in`)
+    console.error(`Only owner can cancel the contract`)
     return
   }
 
   console.error(`You've been identified as the contract owner.`)
 
-  if (state !== States.Active) {
-    console.error(`Owner can perform check-in only for a contract in Active state`)
+  if (state !== States.Active && state !== States.CallForKeepers) {
+    console.error(`Owner can cancel only for a contract in Active or CallForKeepers state`)
     return
   }
 
@@ -50,35 +50,38 @@ export async function checkIn(contractAddressOrID) {
     await instance.calculateApproximateCheckInPrice(),
   ]
 
-  const checkInDueDate = moment.unix(lastOwnerCheckInAt + checkInIntervalInSec)
-  const isCheckInOnTime = moment().isSameOrBefore(checkInDueDate)
+  if (state === States.Active) {
+    const checkInDueDate = moment.unix(lastOwnerCheckInAt + checkInIntervalInSec)
+    const isCheckInOnTime = moment().isSameOrBefore(checkInDueDate)
 
-  if (!isCheckInOnTime) {
-    console.error(`Sorry, you have missed check-in due date.`)
-    console.error(`Bob now can decrypt the legacy.`)
-    return
+    if (!isCheckInOnTime) {
+      console.error(`Sorry, you have missed check-in due date. Cancelling contract isn't possible`)
+      console.error(`Bob now can decrypt the legacy.`)
+      return
+    }
   }
+
+  const cancelPrice = state === States.Active ? checkInPrice : 0
 
   // TODO: check owner account balance
 
-  const txResult = await contractTx(instance, 'ownerCheckIn', {
+  const txResult = await contractTx(instance, 'cancel', {
     from: address,
-    value: checkInPrice,
+    value: cancelPrice,
     approveFee: (gas, gasPrice) => {
       const checkInDuration = moment
         .duration(checkInIntervalInSec, 's')
         .humanize()
         .replace(/^a /, '')
       const txFee = gas.times(gasPrice)
-      const combinedFee = txFee.plus(checkInPrice)
+      const combinedFee = txFee.plus(cancelPrice)
       const proceed = ynQuestion(
-        `\nCheck-in will cost you ${formatWei(combinedFee)}:\n` +
-          `  keeping fee for the next ${checkInDuration}: ${formatWei(checkInPrice)},\n` +
+        `\nCancelling contract will cost you ${formatWei(combinedFee)}:\n` +
           `  transaction cost: ${formatWei(txFee)}.\n\n` +
           `Proceed?`,
       )
       if (proceed) {
-        print(`Checking in...`)
+        print(`Cancelling contract`)
       }
       return proceed
     },
@@ -90,10 +93,4 @@ export async function checkIn(contractAddressOrID) {
   }
 
   console.error(`\nSee you next time!`)
-  console.error(
-    'The next check-in:',
-    moment()
-      .add(checkInIntervalInSec, 's')
-      .fromNow(),
-  )
 }
