@@ -1,11 +1,12 @@
-export const command = 'checkin <contract>'
+export const command = 'checkin [contract]'
 
 export const desc = 'Perform owner check-in'
 
 // prettier-ignore
 export const builder = yargs => yargs
   .positional('contract', {
-    desc: 'Contract ID or address'
+    desc: 'Contract ID or address',
+    default: null,
   })
 
 // Implementation
@@ -20,6 +21,7 @@ import {contractTx} from '../utils/tx'
 import {print, ynQuestion} from '../utils/print'
 import {getBalance} from '../utils/web3'
 import runCommand from '../utils/run-command'
+import {selectContract} from '../utils/select-contract'
 
 export function handler(argv) {
   return runCommand(() => checkIn(argv.contract))
@@ -29,6 +31,11 @@ export async function checkIn(contractAddressOrID) {
   const address = await unlockAccount()
 
   print(`Current account address: ${address}`)
+
+  if (contractAddressOrID === null) {
+    console.error('Please select a contract for check-in:')
+    contractAddressOrID = await selectContract()
+  }
 
   const instance = await getContractInstance(contractAddressOrID)
   const [state, owner] = [(await instance.state()).toNumber(), await instance.owner()]
@@ -41,7 +48,8 @@ export async function checkIn(contractAddressOrID) {
   console.error(`You've been identified as the contract owner.`)
 
   if (state !== States.Active) {
-    console.error(`Owner can perform check-in only for a contract in Active state`)
+    console.error(`Owner can perform check-in only for a contract in Active state.`)
+    console.error(`Check-in Failed.`)
     return
   }
 
@@ -57,6 +65,7 @@ export async function checkIn(contractAddressOrID) {
   if (!isCheckInOnTime) {
     console.error(`Sorry, you have missed check-in due date.`)
     console.error(`Bob now can decrypt the legacy.`)
+    console.error(`Check-in Failed.`)
     return
   }
 
