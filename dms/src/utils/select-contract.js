@@ -9,7 +9,7 @@ export async function selectContract() {
   const {registry} = await getContractAPIs()
   const contracts = await fetchOwnerContracts(registry, accounts[0])
 
-  const index = readlineSync.keyInSelect(contracts, 'Which contract?', {cancel: 'Cancel'})
+  const index = readlineSync.keyInSelect(contracts, 'Which contract?', {cancel: 'Exit'})
 
   if (index === -1) {
     process.exit(0)

@@ -33,7 +33,7 @@ export async function checkIn(contractAddressOrID) {
   print(`Current account address: ${address}`)
 
   if (contractAddressOrID === null) {
-    console.error('Please select a contract for check-in:')
+    console.error('Please select a contract to check-in:')
     contractAddressOrID = await selectContract()
   }
 
@@ -86,10 +86,12 @@ export async function checkIn(contractAddressOrID) {
       const difference = actualBalance.minus(combinedFee)
 
       if (difference.lessThan(0)) {
-        print(`\nCouldn't check in due to low balance.\n`+
-          `  Check in will cost you ${formatWei(combinedFee)}\n`+
-          `  and you've got only ${formatWei(actualBalance)}.\n`+
-          `  Please, add ${formatWei(difference.abs())} to your account and try again.`)
+        print(
+          `\nCouldn't check in due to low balance.\n` +
+            `  Check in will cost you ${formatWei(combinedFee)}\n` +
+            `  and you've got only ${formatWei(actualBalance)}.\n` +
+            `  Please, add ${formatWei(difference.abs())} to your account and try again.`,
+        )
         return false
       }
 
