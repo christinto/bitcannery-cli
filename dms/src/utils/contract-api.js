@@ -65,3 +65,11 @@ export async function fetchKeeperProposals(contract) {
   const promises = new Array(+numProposals).fill(0).map((_, i) => contract.keeperProposals(i))
   return (await Promise.all(promises)).map(rawProposal => assembleProposalStruct(rawProposal))
 }
+
+export async function fetchOwnerContracts(registryContract, ownerAddress) {
+  const numContracts = await registryContract.getNumContractsByOwner(ownerAddress)
+  const promises = new Array(+numContracts)
+    .fill(0)
+    .map((_, i) => registryContract.getContractByOwner(ownerAddress, i))
+  return (await Promise.all(promises)).map(rawContract => rawContract.toString())
+}
