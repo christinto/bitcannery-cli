@@ -33,6 +33,11 @@ There are 9 accounts pre-generated on local development network. We'll use first
 
 Application supports having multiple configurations per machine. You can specify which config to use by setting `CONFIG_NAME` environment variable. This is mainly for development/testing purposes; we'll use this feature to run clients for Alice and three keepers on the same machine.
 
+If you want to clear your config, just remove the directory (Linux, MacOS).
+```
+rm -rf ~/Library/Preferences/dms-nodejs
+```
+
 When you run `geth` using `run-geth` command, it starts RPC server on `http://localhost:9545`, which is a non-default port to prevent collision with your main `geth` instance. We need to tell our application to connect to this port instead of the default one. You can do it using `set-client-options` command:
 
 ```
