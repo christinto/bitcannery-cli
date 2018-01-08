@@ -11,6 +11,7 @@ import {getAccounts} from '../utils/web3'
 import runCommand from '../utils/run-command'
 import getContractAPIs from '../utils/get-contract-apis'
 import {fetchOwnerContracts} from '../utils/contract-api'
+import print from '../utils/print'
 
 export function handler(argv) {
   return runCommand(() => getList())
@@ -22,6 +23,12 @@ async function getList() {
   const accounts = await getAccounts()
   const {registry} = await getContractAPIs()
   const contracts = await fetchOwnerContracts(registry, accounts[0])
+
+  if (contracts.length === 0) {
+    print(`\nYou have no contracts yet.\n`)
+    return
+  }
+
   for (let i = 0; i < contracts.length; ++i) {
     console.error(contracts[i])
   }
