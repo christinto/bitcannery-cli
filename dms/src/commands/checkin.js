@@ -16,7 +16,7 @@ import moment from 'moment'
 import getContractInstance from '../utils/get-contract-instance'
 import unlockAccount from '../utils/unlock-account'
 import {formatWei} from '../utils/format'
-import {States} from '../utils/contract-api'
+import {States, getActiveKeeperAddresses, getActiveKeepers} from '../utils/contract-api'
 import {contractTx} from '../utils/tx'
 import {print, ynQuestion} from '../utils/print'
 import {getBalance} from '../utils/web3'
@@ -120,4 +120,21 @@ export async function checkIn(contractAddressOrID) {
       .add(checkInIntervalInSec, 's')
       .fromNow(),
   )
+
+  const activeKeeperAddresses = await getActiveKeeperAddresses(instance)
+  const activeKeeper = await getActiveKeepers(instance, activeKeeperAddresses)
+  const keeperReliabilityThreshold = Math.floor(Date.now() / 1000) - checkInIntervalInSec
+  const reliableKeepers = activeKeeper.filter(k => k.lastCheckInAt > keeperReliabilityThreshold)
+  print(`\nTotal keepers number: ${activeKeeper.length}`)
+  print(`Reliable keepers number: ${reliableKeepers.length}`)
+
+  const keeperNumberThreshold = Math.ceil(activeKeeper.length * 2 / 3)
+
+  if (reliableKeepers.length < keeperNumberThreshold) {
+    print(
+      `\nThe number of keeper fell below the critical limit.` +
+        ` To successfully decrypt the contract, you need at least ${keeperNumberThreshold} keepers.` +
+        ` You must perform keeper rotation procedure!\n`,
+    )
+  }
 }

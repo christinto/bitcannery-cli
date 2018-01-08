@@ -65,13 +65,18 @@ async function deploy(pathToFile) {
   const {LegacyContract, registry} = await getContractAPIs()
   const contractId = await obtainNewContractName(registry)
 
-  const checkInInterval = readlineSync.question('Please specify check-in interval in days (30): ', {
-    limit: input => {
-      const value = Number(input)
-      return value && value >= MIN_CHECKIN_INTERVAL_IN_DAYS && value <= MAX_CHECKIN_INTERVAL_IN_DAYS
+  const checkInInterval = readlineSync.question(
+    '\nPlease specify check-in interval in days (30): ',
+    {
+      limit: input => {
+        const value = Number(input)
+        return (
+          value && value >= MIN_CHECKIN_INTERVAL_IN_DAYS && value <= MAX_CHECKIN_INTERVAL_IN_DAYS
+        )
+      },
+      limitMessage: `Check-in interval should be a number in range between [${MIN_CHECKIN_INTERVAL_IN_DAYS}..${MAX_CHECKIN_INTERVAL_IN_DAYS}].`,
     },
-    limitMessage: `Check-in interval should be a number in range between [${MIN_CHECKIN_INTERVAL_IN_DAYS}..${MAX_CHECKIN_INTERVAL_IN_DAYS}].`,
-  })
+  )
 
   const checkInIntervalInSec = Number(checkInInterval) * 24 * 60 * 60
 
@@ -209,11 +214,6 @@ async function waitForKeepers(contractAddressOrID, pathToFile) {
   const address = await unlockAccount()
 
   print(`Current account address: ${address}`)
-
-  if (contractAddressOrID === null) {
-    console.error('Please select a contract to continue deploy:')
-    contractAddressOrID = await selectContract()
-  }
 
   const instance = await getContractInstance(contractAddressOrID)
   let [state, owner] = [(await instance.state()).toNumber(), await instance.owner()]
