@@ -17,6 +17,7 @@ export const builder = yargs => yargs
 
 // Implementation
 
+import moment from 'moment'
 import assert from 'assert'
 import dockerNames from 'docker-names'
 import BigNumber from 'bignumber.js'
@@ -191,6 +192,14 @@ async function deploy(pathToFile) {
 
   const state = await instance.state()
   assert.equal(state.toNumber(), States.Active)
+
+  print(
+    `\nSee you next time!\n` +
+      'The next check-in: ' +
+      moment()
+        .add(checkInIntervalInSec, 's')
+        .fromNow(),
+  )
 }
 
 async function waitForKeepers(contractAddressOrID, pathToFile) {
@@ -304,6 +313,16 @@ async function waitForKeepers(contractAddressOrID, pathToFile) {
 
   state = await instance.state()
   assert.equal(state.toNumber(), States.Active)
+
+  const checkInIntervalInSec = (await instance.checkInInterval()).toNumber()
+
+  print(
+    `\nSee you next time!\n` +
+      'The next check-in: ' +
+      moment()
+        .add(checkInIntervalInSec, 's')
+        .fromNow(),
+  )
 }
 
 async function obtainNewContractName(registry) {
