@@ -102,7 +102,7 @@ $ node index.js keeper
 Open a new terminal and run Alice's client to deploy a contract:
 
 ```text
-$ node index.js deploy -f sample_legacy.txt
+$ node index.js deploy sample_legacy.txt
 Welcome to KeeperNet v2!
 
 Address 0x8bff9474cfb5ab51b0710cdee6f54eed65f1b5f9 will be used to create a new
@@ -150,13 +150,13 @@ Paid for transaction: 1290395 wei
 Activate the contract by anwsering `Y`. Alice should check-in at least once in a minute (this is hard-coded in this iteration):
 
 ```sh
-$ node index.js checkin -c sleepy_shirley_29
+$ node index.js checkin sleepy_shirley_29
 ```
 
 You can check status of a contract using `status` command:
 
 ```sh
-$ node index.js status -c sleepy_shirley_29
+$ node index.js status sleepy_shirley_29
 ```
 
 Keepers will check in right after Alice checks in, or when Alice failed to check in in time.
@@ -164,5 +164,5 @@ Keepers will check in right after Alice checks in, or when Alice failed to check
 Stop performing check-ins by Alice for at least 2 minutes and watch keepers decrypt and submit their key parts. Now Bob can decrypt the legacy:
 
 ```sh
-$ node index.js decrypt -c sleepy_shirley_29
+$ node index.js decrypt sleepy_shirley_29
 ```
