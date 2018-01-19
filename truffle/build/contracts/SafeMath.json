@@ -1,8 +1,8 @@
 {
   "contractName": "SafeMath",
   "abi": [],
-  "bytecode": "0x60606040523415600e57600080fd5b603580601b6000396000f3006060604052600080fd00a165627a7a723058205570278ab231f392f81bad740f039c51252888f3b2fdc4fba0b2ceddd82c06340029",
-  "deployedBytecode": "0x6060604052600080fd00a165627a7a723058205570278ab231f392f81bad740f039c51252888f3b2fdc4fba0b2ceddd82c06340029",
+  "bytecode": "0x60606040523415600e57600080fd5b603580601b6000396000f3006060604052600080fd00a165627a7a72305820e8e073e7030da1259b355e16931994091114b79bd6328a370731c060763c70630029",
+  "deployedBytecode": "0x6060604052600080fd00a165627a7a72305820e8e073e7030da1259b355e16931994091114b79bd6328a370731c060763c70630029",
   "sourceMap": "213:682:5:-;;;;;;;;;;;;;;;;;",
   "deployedSourceMap": "213:682:5:-;;;;;",
   "source": "// Taken from github.com/OpenZeppelin/zeppelin-solidity/blob/647fc13/contracts/math/SafeMath.sol\n\npragma solidity 0.4.18;\n\n/**\n * @title SafeMath\n * @dev Math operations with safety checks that throw on error\n */\nlibrary SafeMath {\n  function mul(uint256 a, uint256 b) internal pure returns (uint256) {\n    uint256 c = a * b;\n    assert(a == 0 || c / a == b);\n    return c;\n  }\n\n  function div(uint256 a, uint256 b) internal pure returns (uint256) {\n    // assert(b > 0); // Solidity automatically throws when dividing by 0\n    uint256 c = a / b;\n    // assert(a == b * c + a % b); // There is no case in which this doesn't hold\n    return c;\n  }\n\n  function sub(uint256 a, uint256 b) internal pure returns (uint256) {\n    assert(b <= a);\n    return a - b;\n  }\n\n  function add(uint256 a, uint256 b) internal pure returns (uint256) {\n    uint256 c = a + b;\n    assert(c >= a);\n    return c;\n  }\n}\n",
@@ -1317,17 +1317,12 @@
     "version": "0.4.18+commit.9cf6e910.Emscripten.clang"
   },
   "networks": {
-    "1337": {
-      "events": {},
-      "links": {},
-      "address": "0xcf3bb400968c1671091b868307a30727fca6a1d3"
-    },
     "4": {
       "events": {},
       "links": {},
-      "address": "0xac4e9d27de4310ab336fef522ee85400bf30ef77"
+      "address": "0xd017c50ba1bfc9ccc1e1b069845b41a44811faac"
     }
   },
   "schemaVersion": "1.0.1",
-  "updatedAt": "2018-01-16T12:28:14.813Z"
+  "updatedAt": "2018-01-18T23:42:59.113Z"
 }

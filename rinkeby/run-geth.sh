@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-UNLOCK='0,1'
+UNLOCK='0,1,2,3'
 DATADIR="~/.rinkeby"
 
 geth \

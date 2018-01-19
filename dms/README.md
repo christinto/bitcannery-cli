@@ -33,9 +33,16 @@ There are 9 accounts pre-generated on local development network. We'll use first
 
 Application supports having multiple configurations per machine. You can specify which config to use by setting `CONFIG_NAME` environment variable. This is mainly for development/testing purposes; we'll use this feature to run clients for Alice and three keepers on the same machine.
 
-If you want to clear your config, just remove the directory (Linux, MacOS).
+If you want to clear your config, just remove the directory.
+
+MacOS
 ```
 rm -rf ~/Library/Preferences/dms-nodejs
+```
+
+Linux
+```
+rm -rf /root/.config/dms-nodejs
 ```
 
 When you run `geth` using `run-geth` command, it starts RPC server on `http://localhost:9545`, which is a non-default port to prevent collision with your main `geth` instance. We need to tell our application to connect to this port instead of the default one. You can do it using `set-client-options` command:
@@ -46,6 +53,8 @@ JSON-RPC connection string set to: http://localhost:9545
 ```
 
 We don't specity `CONFIG_NAME` when running Alice's client, so it uses the default config with account index 0.
+
+## Setup keepers
 
 Now let's setup three configurations for different keepers:
 
@@ -166,3 +175,36 @@ Stop performing check-ins by Alice for at least 2 minutes and watch keepers decr
 ```sh
 $ node index.js decrypt sleepy_shirley_29
 ```
+
+## Rinkeby network
+
+1. Run `geth` in `--rinkeby` mode and wait approximately 15-20 mins for whole sync.
+
+```
+geth --datadir="~/.rinkeby " --rinkeby --rpc --rpcapi='db,eth,net,web3,personal' --rpcport '9545' --rpcaddr '127.0.0.1' --rpccorsdomain '*' console
+```
+
+Note: blockchain data for rinkeby network will be stored at `~/.rinkeby`
+
+2. Import accounts with some amount of ETH.
+
+Inside `geth` console
+
+```
+> loadScript('./rinkeby/import-accounts.js')
+
+It should import 4 accounts
+> eth.accounts
+["0x6da26a02b4364dcff7cfd58f8a8b9c6ce62a0c61", "0xbb2bced367d8c4712baac44616c1e61797f392a3", "0xc712deae0ab6abf65285ed42400b127056f3c664", "0x80433df99abe278680a20f0bc70bbf243d51c803"]
+```
+
+Stop current instance of geth and run geth with a script:
+```
+cd rinkeby
+./run-geth.sh
+```
+
+3. [OPTIONAL STEP] Add your own accounts and request some amount of Eth and modify `rinkeby/run-geth.sh` and `rinkeby/rinkeby-passwords.txt`.
+https://gist.github.com/cryptogoth/10a98e8078cfd69f7ca892ddbdcf26bc#step-4-request-eth
+
+4. Go to section `Setup keepers` and `Happy Path` 
