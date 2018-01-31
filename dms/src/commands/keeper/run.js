@@ -113,7 +113,7 @@ async function handleNewContractEvent({id, addr: address, totalContracts}, api) 
   console.error(`==> Detected new contract "${id}" at address ${address}`)
   contractsStore.setLastCheckedContractIndex(totalContracts.toNumber() - 1)
   updateConfigThrottled()
-  return checkContractWithAddress(address, api)
+  return checkNewContractWithAddress(address, api)
 }
 
 async function checkNewContractsSinceLastStart(api) {
@@ -153,7 +153,7 @@ async function checkNewContractsSinceLastStart(api) {
     fn: async i => {
       const id = await api.registry.contracts(lastIndex + 1 + i)
       const address = await api.registry.getContractAddress(id)
-      return checkContractWithAddress(address, api)
+      return checkNewContractWithAddress(address, api)
     },
   })
 
@@ -162,13 +162,20 @@ async function checkNewContractsSinceLastStart(api) {
   console.error(`==> Done checking new contracts since last start!`)
 }
 
-async function checkContractWithAddress(address, api) {
+async function checkNewContractWithAddress(address, api) {
   try {
     const instance = await api.LegacyContract.at(address).then(x => x)
-    return checkContract(instance, api)
+    return checkNewContract(instance, api)
   } catch (err) {
     handleContractObtainingError(err, address)
   }
+}
+
+async function checkNewContract(contract, api) {
+  const state = await contract.state()
+  return state.toNumber() === States.CallForKeepers
+    ? handleCallForKeepersState(contract, api)
+    : null
 }
 
 async function checkContract(contract, api) {
