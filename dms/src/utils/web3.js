@@ -26,3 +26,26 @@ export function getBalance(address) {
 export function sign(address, data) {
   return promisifyCall(web3.eth.sign, web3.eth, [address, data])
 }
+
+export function getNetwork() {
+  return promisifyCall(web3.version.getNetwork, web3.version)
+}
+
+export async function getNetworkName() {
+  const netId = await getNetwork()
+
+  switch (netId) {
+    case '1':
+      return 'Ethereum mainnet'
+    case '2':
+      return 'Morden test network'
+    case '3':
+      return 'Ropsten test network'
+    case '4':
+      return 'Rinkeby test network'
+    case '1337':
+      return 'Local development test network'
+    default:
+      return 'Unknown network'
+  }
+}

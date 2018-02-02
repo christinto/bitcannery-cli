@@ -17,35 +17,36 @@ export const builder = yargs => yargs
 
 // Implementation
 
+import yn from 'yn'
+import inquirer from 'inquirer'
 import moment from 'moment'
-import assert from 'assert'
 import dockerNames from 'docker-names'
 import BigNumber from 'bignumber.js'
-import readlineSync from 'readline-sync'
 
 import runCommand from '../utils/run-command'
 import getContractAPIs from '../utils/get-contract-apis'
-import unlockAccount from '../utils/unlock-account'
-import {generateKeyPair, encryptData} from '../utils/encryption'
-import {States, fetchKeeperProposals} from '../utils/contract-api'
-import {formatWei} from '../utils/format'
-import {contractTx, getBlockGasLimit, getGasPrice} from '../utils/tx'
-import readFile from '../utils/read-file'
-import delay from '../utils/delay'
-import print, {question, ynQuestion} from '../utils/print'
+import {generateKeyPair} from '../utils/encryption'
+import {getGasPrice} from '../utils/tx'
+
+import print from '../utils/print'
 import getContractInstance from '../utils/get-contract-instance'
-import UserError from '../utils/user-error'
+
+import {
+  printWelcomeAndUnlockAccount,
+  readLegacyData,
+  deployLegacyContract,
+  waitForKeepers,
+  activateContract,
+} from './deploy/utils'
 
 const MIN_CHECKIN_INTERVAL_IN_DAYS = 1 / (60 * 24) // 1 min
 const MAX_CHECKIN_INTERVAL_IN_DAYS = 365 * 3 // 3 years
-
-const MIN_KEEPERS_NUMBER = 3
-const MAX_KEEPERS_NUMBER = 127
+const DEFAULT_KEEPER_NUMBER = 2
 
 export function handler(argv) {
   return runCommand(() => {
     if (argv.continueId) {
-      waitForKeepers(argv.continueId, argv.pathToFile)
+      continueDeploy(argv.continueId, argv.pathToFile)
     } else {
       deploy(argv.pathToFile)
     }
@@ -53,306 +54,216 @@ export function handler(argv) {
 }
 
 async function deploy(pathToFile) {
-  print('Welcome to KeeperNet v2!\n')
+  const address = await printWelcomeAndUnlockAccount()
 
-  const fileContent = await readFile(pathToFile)
-  const legacyData = '0x' + fileContent.toString('hex')
+  print(
+    `You are about to deploy a new contract. Legacy data will ` +
+      `be taken from the provided file, and encrypted with Bob's private key ` +
+      `the first time, and with shared secret the second time. The shared secret ` +
+      `will be split into parts and distributed among multiple keepers.\n`,
+  )
 
-  const address = await unlockAccount()
-
-  print(`Address ${address} will be used to create a new contract.`)
-
+  const legacyData = await readLegacyData(pathToFile)
   const {LegacyContract, registry} = await getContractAPIs()
+
   const contractId = await obtainNewContractName(registry)
 
-  const checkInInterval = readlineSync.question(
-    '\nPlease specify check-in interval in days (30): ',
-    {
-      limit: input => {
-        const value = Number(input)
-        return (
-          value && value >= MIN_CHECKIN_INTERVAL_IN_DAYS && value <= MAX_CHECKIN_INTERVAL_IN_DAYS
-        )
-      },
-      limitMessage: `Check-in interval should be a number in range between [${MIN_CHECKIN_INTERVAL_IN_DAYS}..${MAX_CHECKIN_INTERVAL_IN_DAYS}].`,
-    },
-  )
-
+  const checkInInterval = await askForCheckinInterval()
   const checkInIntervalInSec = Number(checkInInterval) * 24 * 60 * 60
 
-  print(`Check-in every ${checkInInterval} days.\n`)
-
-  const numberOfKeepers = readlineSync.question('Set the number of keepers (12): ', {
-    limit: input => {
-      const value = Number(input)
-      return value && value >= MIN_KEEPERS_NUMBER && value <= MAX_KEEPERS_NUMBER
-    },
-    limitMessage: `Keepers number should be an integer in range between [${MIN_KEEPERS_NUMBER}..${MAX_KEEPERS_NUMBER}].`,
-  })
+  const gasPrice = await getGasPrice()
+  const legacyContract = await deployLegacyContract(
+    contractId,
+    checkInIntervalInSec,
+    address,
+    gasPrice,
+  )
 
   print(
-    `Your contract will be secured by ${numberOfKeepers} keepers\n\n` +
-      `Publishing a new contract...`,
+    `Contract "${contractId}" has been deployed to the network. Contract address is ${address}. ` +
+      `You have to wait until the keepers send their proposals with price for keeping the legacy, ` +
+      `it will take some time. It's not necessary to keep this terminal session opened, ` +
+      `you can always continue the deployment process with following command: \n\n` +
+      `  node index.js deploy ${pathToFile} -c ${contractId}\n`,
   )
 
-  const [blockGasLimit, gasPrice] = [await getBlockGasLimit(), await getGasPrice()]
-
-  const instance = await LegacyContract.new(checkInIntervalInSec, {
-    from: address,
-    gas: blockGasLimit, // TODO: estimate gas usage
-    gasPrice: gasPrice,
-  })
-
-  print(
-    `Contract is published.\n` +
-      `Contract address is ${instance.address}\n\n` +
-      `Registering contract...`,
+  const selectedProposalIndices = await waitForKeepers(
+    legacyContract,
+    DEFAULT_KEEPER_NUMBER + 1,
+    DEFAULT_KEEPER_NUMBER,
   )
-
-  const registerTxResult = await contractTx(registry, 'addContract', contractId, instance.address, {
-    from: address,
-  })
-
-  print(
-    `Done! Transaction hash: ${registerTxResult.txHash}\n` +
-      `Paid for transaction: ${formatWei(registerTxResult.txPriceWei)}\n\n` +
-      `System is calling for keepers, this might take some time...\n`,
-  )
-
-  let numKeepersProposals = (await instance.getNumProposals()).toNumber()
-  let currentKeepersProposals = numKeepersProposals
-
-  while (numKeepersProposals < numberOfKeepers) {
-    numKeepersProposals = (await instance.getNumProposals()).toNumber()
-    if (numKeepersProposals > currentKeepersProposals) {
-      print(`${numKeepersProposals} keepers have joined...`)
-      currentKeepersProposals = numKeepersProposals
-    }
-    if (numKeepersProposals < numberOfKeepers) {
-      await delay(1000)
-    }
-  }
-
-  let selectedProposalIndices = []
-  for (let i = 0; i < numberOfKeepers; ++i) {
-    selectedProposalIndices.push(i)
-  }
-
-  const activationPrice = await instance.calculateActivationPrice(selectedProposalIndices)
-  const doActivate = ynQuestion(
-    `\nYou have enough keepers now.\n` +
-      `You will pay ${formatWei(activationPrice)} for each check-in interval. ` +
-      `Do you want to activate the contract?`,
-  )
-
-  if (!doActivate) {
-    return
-  }
 
   const {privateKey, publicKey} = generateKeyPair()
 
-  print(
-    `\nGenerated Bob's private key. You must send it to Bob using secure channel. If you ` +
-      `don't give it to Bob, he won't be able to decrypt the data. If you transfer it ` +
-      `using non-secure channel, anyone will be able to decrypt the data:\n\n` +
-      `${privateKey}\n`,
-  )
+  print(`\nBob's private key: ${privateKey}\n`)
 
-  const proposals = await fetchKeeperProposals(instance)
-  const selectedProposals = selectedProposalIndices.map(i => proposals[i])
-  const keeperPublicKeys = selectedProposals.map(p => p.publicKey)
-  const numKeepersToRecover = Math.max(Math.floor(selectedProposals.length * 2 / 3), 2)
-
-  // console.error(`keeperPublicKeys:`, keeperPublicKeys)
-  // console.error(`numKeepersToRecover:`, numKeepersToRecover)
-
-  const encryptionResult = await encryptData(
-    legacyData,
-    publicKey,
-    keeperPublicKeys,
-    numKeepersToRecover,
-  )
-
-  // console.error('encryptionResult:', encryptionResult)
-
-  print(`Activating contract...`)
-
-  const acceptTxResult = await contractTx(
-    instance,
-    'acceptKeepers',
+  await activateContract(
+    legacyContract,
     selectedProposalIndices,
-    encryptionResult.keyPartHashes,
-    encryptionResult.encryptedKeyParts,
-    encryptionResult.shareLength,
-    encryptionResult.encryptedLegacyData,
-    encryptionResult.legacyDataHash,
-    encryptionResult.aesCounter,
-    {from: address, value: activationPrice},
+    publicKey,
+    address,
+    gasPrice,
+    legacyData,
   )
 
   print(
-    `Done! Transaction hash: ${acceptTxResult.txHash}\n` +
-      `Paid for transaction: ${formatWei(acceptTxResult.txPriceWei)}`,
+    `\nYou must send the key to Bob using secure channel. If you ` +
+      `don't give it to Bob, he won't be able to decrypt the data. If you transfer it ` +
+      `using non-secure channel, anyone will be able to decrypt the data. Bob's private key:\n\n` +
+      `${privateKey}\n\n` +
+      `Please store Bob's key pair and the legacy text securely, \n` +
+      `this will be required in case of keeper rotation procedure. \n` +
+      `You have to perform check-ins on time otherwise Bob can decrypt the legacy. ` +
+      `Please use the following command to perform check-in: \n\n` +
+      `  node index.js checkin ${contractId}\n`,
   )
 
-  const state = await instance.state()
-  assert.equal(state.toNumber(), States.Active)
-
   print(
-    `\nSee you next time!\n` +
-      'The next check-in: ' +
+    'The next check-in due date: ' +
       moment()
         .add(checkInIntervalInSec, 's')
-        .fromNow(),
+        .format('DD MMM YYYY'),
   )
 }
 
-async function waitForKeepers(contractAddressOrID, pathToFile) {
-  const fileContent = await readFile(pathToFile)
-  const legacyData = '0x' + fileContent.toString('hex')
+async function continueDeploy(contractAddressOrID, pathToFile) {
+  const address = await printWelcomeAndUnlockAccount()
+  const legacyData = await readLegacyData(pathToFile)
 
-  const address = await unlockAccount()
+  const legacyContract = await getContractInstance(contractAddressOrID)
 
   print(`Current account address: ${address}`)
 
-  const instance = await getContractInstance(contractAddressOrID)
-  let [state, owner] = [(await instance.state()).toNumber(), await instance.owner()]
+  const gasPrice = await getGasPrice()
+  let [state, owner] = [(await legacyContract.state()).toNumber(), await legacyContract.owner()]
+
+  if (state !== 0) {
+    print(`\nYou can continue deploy for contract in "CallForKeepers" state only`)
+    return
+  }
 
   if (owner !== address) {
-    console.error(`Only contract owner can perform check-in`)
+    print(`\nOnly contract owner can perform check-in`)
     return
   }
 
-  print(`You've been identified as the contract owner.`)
+  print(`You've been identified as the contract owner.\n`)
 
-  let numKeepersProposals = (await instance.getNumProposals()).toNumber()
-  let currentKeepersProposals = numKeepersProposals
-
-  print(`${numKeepersProposals} keepers already joined\n`)
-
-  const numberOfKeepers = readlineSync.question('Set the number of keepers (12): ', {
-    limit: input => {
-      const value = Number(input)
-      return value && value >= MIN_KEEPERS_NUMBER && value <= MAX_KEEPERS_NUMBER
-    },
-    limitMessage: `Keepers number should be an integer in range between [${MIN_KEEPERS_NUMBER}..${MAX_KEEPERS_NUMBER}].`,
-  })
-
-  print(
-    `Your contract will be secured by ${numberOfKeepers} keepers\n` +
-      `System is calling for keepers, this might take some time...\n`,
+  const selectedProposalIndices = await waitForKeepers(
+    legacyContract,
+    DEFAULT_KEEPER_NUMBER + 1,
+    DEFAULT_KEEPER_NUMBER,
   )
-
-  while (numKeepersProposals < numberOfKeepers) {
-    numKeepersProposals = (await instance.getNumProposals()).toNumber()
-    if (numKeepersProposals > currentKeepersProposals) {
-      print(`${numKeepersProposals} keepers have joined...`)
-      currentKeepersProposals = numKeepersProposals
-    }
-    if (numKeepersProposals < numberOfKeepers) {
-      await delay(1000)
-    }
-  }
-
-  let selectedProposalIndices = []
-  for (let i = 0; i < numberOfKeepers; ++i) {
-    selectedProposalIndices.push(i)
-  }
-
-  const activationPrice = await instance.calculateActivationPrice(selectedProposalIndices)
-  const doActivate = ynQuestion(
-    `\nYou have enough keepers now.\n` +
-      `You will pay ${formatWei(activationPrice)} for each check-in interval. ` +
-      `Do you want to activate the contract?`,
-  )
-
-  if (!doActivate) {
-    return
-  }
 
   const {privateKey, publicKey} = generateKeyPair()
 
-  print(
-    `\nGenerated Bob's private key. You must send it to Bob using secure channel. If you ` +
-      `don't give it to Bob, he won't be able to decrypt the data. If you transfer it ` +
-      `using non-secure channel, anyone will be able to decrypt the data:\n\n` +
-      `${privateKey}\n`,
-  )
+  print(`\nBob's private key: ${privateKey}\n`)
 
-  const proposals = await fetchKeeperProposals(instance)
-  const selectedProposals = selectedProposalIndices.map(i => proposals[i])
-  const keeperPublicKeys = selectedProposals.map(p => p.publicKey)
-  const numKeepersToRecover = Math.max(Math.floor(selectedProposals.length * 2 / 3), 2)
-
-  const encryptionResult = await encryptData(
-    legacyData,
-    publicKey,
-    keeperPublicKeys,
-    numKeepersToRecover,
-  )
-
-  print(`Activating contract...`)
-
-  const acceptTxResult = await contractTx(
-    instance,
-    'acceptKeepers',
+  await activateContract(
+    legacyContract,
     selectedProposalIndices,
-    encryptionResult.keyPartHashes,
-    encryptionResult.encryptedKeyParts,
-    encryptionResult.shareLength,
-    encryptionResult.encryptedLegacyData,
-    encryptionResult.legacyDataHash,
-    encryptionResult.aesCounter,
-    {from: address, value: activationPrice},
+    publicKey,
+    address,
+    gasPrice,
+    legacyData,
   )
 
   print(
-    `Done! Transaction hash: ${acceptTxResult.txHash}\n` +
-      `Paid for transaction: ${formatWei(acceptTxResult.txPriceWei)}`,
+    `\n` +
+      `You must send the key to Bob using secure channel. If you ` +
+      `don't give it to Bob, he won't be able to decrypt the data. If you transfer it ` +
+      `using non-secure channel, anyone will be able to decrypt the data. Bob's private key:\n\n` +
+      `${privateKey}\n\n` +
+      `Please store Bob's key pair and the legacy text securely, \n` +
+      `this will be required in case of keeper rotation procedure. \n` +
+      `You have to perform check-ins on time otherwise Bob can decrypt the legacy. ` +
+      `Please use the following command to perform check-in: \n\n` +
+      `  node index.js checkin ${contractAddressOrID}\n`,
   )
 
-  state = await instance.state()
-  assert.equal(state.toNumber(), States.Active)
-
-  const checkInIntervalInSec = (await instance.checkInInterval()).toNumber()
+  const checkInIntervalInSec = await legacyContract.checkInInterval().then(x => x.toNumber())
 
   print(
-    `\nSee you next time!\n` +
-      'The next check-in: ' +
+    'The next check-in due date: ' +
       moment()
         .add(checkInIntervalInSec, 's')
-        .fromNow(),
+        .format('DD MMM YYYY'),
   )
 }
 
 async function obtainNewContractName(registry) {
   while (true) {
-    console.error()
-
     let name = await obtainRandomName(registry)
-    const useRandomName = ynQuestion(
-      `The automatically-generated random name for this contract is "${name}". ` +
-        `Do you want to use it?`,
-    )
+
+    console.error(`The automatically-generated random name for this contract is "${name}". `)
+
+    const useRandomName = await inquirer
+      .prompt([
+        {
+          type: 'input',
+          name: 'useRandomName',
+          message: `Do you want to use it? (Y/n)`,
+          prefix: '',
+          validate: input => {
+            const value = yn(input)
+
+            if (value == null) {
+              return `Please type 'y', 'n', 'yes' or 'no'`
+            }
+
+            return true
+          },
+        },
+      ])
+      .then(input => yn(input['useRandomName']))
+
     if (useRandomName) {
       return name
     }
 
-    console.error()
+    name = await inquirer
+      .prompt([
+        {
+          type: 'input',
+          name: 'name',
+          message: `Please enter name for this contract (enter "g" to generate new random name)`,
+          prefix: '',
+          validate: input => {
+            if (!isValidName(input) || input.length === 0) {
+              return `Name should be alphanumeric without spaces, "-" and "_" are allowed`
+            }
 
-    name = question.demandAnswer(
-      `Please enter name for this contract (enter "g" to generate new random name):`,
-    )
+            return true
+          },
+        },
+      ])
+      .then(x => x['name'])
+
     if (name === 'g') {
       continue
     }
 
     while (!await isUnique(name, registry)) {
       console.error()
-      name = question.demandAnswer(
-        `Unfortunately, there is already a contract with this name in the system. ` +
-          `Please enter another name (enter "g" to generate new random name):`,
-      )
+
+      name = await inquirer
+        .prompt([
+          {
+            type: 'input',
+            name: 'name',
+            message: `Please enter another name (enter "g" to generate new random name)`,
+            prefix: '',
+            validate: input => {
+              if (!isValidName(input)) {
+                return `Name should be alphanumeric without spaces, "-" and "_" are allowed`
+              }
+
+              return true
+            },
+          },
+        ])
+        .then(x => x['name'])
+
       if (name === 'g') {
         break
       }
@@ -362,6 +273,39 @@ async function obtainNewContractName(registry) {
       return name
     }
   }
+}
+
+async function askForCheckinInterval() {
+  const CHECKIN_INTERVAL_QUESTION_ID = 'CHECKIN_INTERVAL_QUESTION_ID'
+
+  return await inquirer
+    .prompt([
+      {
+        type: 'input',
+        name: CHECKIN_INTERVAL_QUESTION_ID,
+        message: 'Please specify check-in interval in days (30 is recommended)',
+        prefix: '',
+        validate: input => {
+          const value = Number(input)
+
+          if (!value) {
+            return `Passed value is not a number, please enter the valid number`
+          }
+          if (value <= 0) {
+            return `You are kidding me, you've provided a negative number`
+          }
+          if (value < MIN_CHECKIN_INTERVAL_IN_DAYS) {
+            return `Check-in interval should be a number in range between [${MIN_CHECKIN_INTERVAL_IN_DAYS}..${MAX_CHECKIN_INTERVAL_IN_DAYS}]`
+          }
+          if (value > MAX_CHECKIN_INTERVAL_IN_DAYS) {
+            return `Check-in interval should be a number in range between [${MIN_CHECKIN_INTERVAL_IN_DAYS}..${MAX_CHECKIN_INTERVAL_IN_DAYS}]`
+          }
+
+          return true
+        },
+      },
+    ])
+    .then(x => x[CHECKIN_INTERVAL_QUESTION_ID])
 }
 
 async function obtainRandomName(registry) {
@@ -374,6 +318,11 @@ async function obtainRandomName(registry) {
 
 function getRandomName() {
   return dockerNames.getRandomName() + '_' + Math.floor(Math.random() * 99 + 1)
+}
+
+function isValidName(str) {
+  const notAllowedSymbols = /[^a-z\d-_]/i
+  return !notAllowedSymbols.test(str)
 }
 
 async function isUnique(name, registry) {
