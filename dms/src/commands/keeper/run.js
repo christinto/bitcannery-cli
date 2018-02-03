@@ -21,6 +21,7 @@ import runCommand from '../../utils/run-command'
 import toNumber from '../../utils/to-number'
 import runInChunks from '../../utils/run-in-chunks'
 import throttle from '../../utils/throttle'
+import AsyncSerialQueue from '../../utils/async-serial-queue'
 import {config, updateConfig} from '../../config'
 
 import contractsStore from './utils/contracts-store'
@@ -42,6 +43,8 @@ const PROCESS_N_CONTRACTS_IN_PARALLEL = 10
 
 // Don't call updateConfig more often than once in five seconds.
 const updateConfigThrottled = throttle(5000, updateConfig)
+
+const txQueue = new AsyncSerialQueue()
 
 async function runKeeper() {
   console.error(`Keeper config:`, sanitizeKeeperConfig(config.keeper))
@@ -151,9 +154,13 @@ async function checkNewContractsSinceLastStart(api) {
     chunkSize: PROCESS_N_CONTRACTS_IN_PARALLEL,
     dataLength: numContractsToCheck,
     fn: async i => {
-      const id = await api.registry.contracts(lastIndex + 1 + i)
-      const address = await api.registry.getContractAddress(id)
-      return checkNewContractWithAddress(address, api)
+      try {
+        const id = await api.registry.contracts(lastIndex + 1 + i)
+        const address = await api.registry.getContractAddress(id)
+        await checkNewContractWithAddress(address, api)
+      } catch (err) {
+        console.error(`ERROR failed to check new contract appeared since last start: ${err.stack}`)
+      }
     },
   })
 
@@ -240,12 +247,10 @@ async function sendProposal(contract, account) {
 
   await ensureUnlocked(account)
 
-  const {txHash, txPriceWei} = await contractTx(
-    contract,
-    'submitKeeperProposal',
-    config.keeper.keypair.publicKey,
-    keepingFee,
-    {from: account},
+  const {txHash, txPriceWei} = await txQueue.enqueueAndWait(() =>
+    contractTx(contract, 'submitKeeperProposal', config.keeper.keypair.publicKey, keepingFee, {
+      from: account,
+    }),
   )
 
   console.error(`Done! Transaction hash: ${txHash}`)
@@ -293,7 +298,10 @@ async function handleActiveState(contract, api) {
   // TODO: check that ETH to be received is bigger than TX price, and don't check in otherwise
 
   await ensureUnlocked(account)
-  const {txHash, txPriceWei} = await contractTx(contract, 'keeperCheckIn', {from: account})
+
+  const {txHash, txPriceWei} = await txQueue.enqueueAndWait(() =>
+    contractTx(contract, 'keeperCheckIn', {from: account}),
+  )
 
   printTx(txHash, keeper.balance, txPriceWei)
 
@@ -345,7 +353,10 @@ async function handleCallForKeysState(contract, {account}) {
   console.error(`Decrypted key part: ${keyPart}`)
 
   await ensureUnlocked(account)
-  const {txHash, txPriceWei} = await contractTx(contract, 'supplyKey', keyPart, {from: account})
+
+  const {txHash, txPriceWei} = await txQueue.enqueueAndWait(() =>
+    contractTx(contract, 'supplyKey', keyPart, {from: account}),
+  )
 
   const received = keeper.balance.plus(keeper.keepingFee)
   printTx(txHash, received, txPriceWei)
@@ -367,7 +378,10 @@ async function handleCancelledState(contract, {account}) {
   console.error(`==> Performing final check-in for contract ${contract.address}...`)
 
   await ensureUnlocked(account)
-  const {txHash, txPriceWei} = await contractTx(contract, 'keeperCheckIn', {from: account})
+
+  const {txHash, txPriceWei} = await txQueue.enqueueAndWait(() =>
+    contractTx(contract, 'keeperCheckIn', {from: account}),
+  )
 
   printTx(txHash, keeper.balance, txPriceWei)
   contractsStore.removeContract(contract.address)
