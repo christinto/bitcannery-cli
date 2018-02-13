@@ -240,20 +240,20 @@ async function checkContractEligibility(contract) {
 }
 
 async function sendProposal(contract, account) {
-  console.error(`==> Sending proposal for contract ${contract.address}...`)
+  console.error(`==> Will send proposal for contract ${contract.address}`)
 
   const keepingFee = await calculateKeepingFee(contract)
-  console.error(`Keeping fee per owner check-in: ${formatWei(keepingFee)}`)
-
   await ensureUnlocked(account)
 
-  const {txHash, txPriceWei} = await txQueue.enqueueAndWait(() =>
-    contractTx(contract, 'submitKeeperProposal', config.keeper.keypair.publicKey, keepingFee, {
+  const {txHash, txPriceWei} = await txQueue.enqueueAndWait(async () => {
+    console.error(`Sending proposal for contract ${contract.address}, fee per owner ` +
+      `check-in: ${formatWei(keepingFee)}...`)
+    return contractTx(contract, 'submitKeeperProposal', config.keeper.keypair.publicKey, keepingFee, {
       from: account,
     }),
-  )
+  })
 
-  console.error(`Done! Transaction hash: ${txHash}`)
+  console.error(`Done sending proposal for contract ${contract.address}, transaction hash: ${txHash}`)
   console.error(`Paid for transaction: ${formatWei(txPriceWei)}`)
 }
 
@@ -303,7 +303,7 @@ async function handleActiveState(contract, api) {
     contractTx(contract, 'keeperCheckIn', {from: account}),
   )
 
-  printTx(txHash, keeper.balance, txPriceWei)
+  printTx(`performing check-in for contract ${contract.address}`, txHash, keeper.balance, txPriceWei)
 
   const state = (await contract.state()).toNumber()
 
@@ -359,7 +359,7 @@ async function handleCallForKeysState(contract, {account}) {
   )
 
   const received = keeper.balance.plus(keeper.keepingFee)
-  printTx(txHash, received, txPriceWei)
+  printTx(`supplying key part for contract ${contract.address}`, txHash, received, txPriceWei)
 
   contractsStore.removeContract(contract.address)
 }
@@ -383,7 +383,8 @@ async function handleCancelledState(contract, {account}) {
     contractTx(contract, 'keeperCheckIn', {from: account}),
   )
 
-  printTx(txHash, keeper.balance, txPriceWei)
+  printTx(`performing final check-in for contract ${contract.address}`,
+    txHash, keeper.balance, txPriceWei)
   contractsStore.removeContract(contract.address)
 
   // TODO: check for continuation contract
@@ -400,9 +401,9 @@ async function ensureUnlocked(account) {
   }
 }
 
-function printTx(txHash, received, txPrice) {
+function printTx(desc, txHash, received, txPrice) {
   console.error(
-    `Done! Transaction hash: ${txHash}\n` +
+    `Done ${desc}! Transaction hash: ${txHash}\n` +
       `Received ${formatWei(received)}, ` +
       `transaction fee ${formatWei(txPrice)}, ` +
       `balance change ${formatWei(received.minus(txPrice))}`,
