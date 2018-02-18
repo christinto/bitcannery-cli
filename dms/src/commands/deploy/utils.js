@@ -110,6 +110,25 @@ export async function announceContinuationContract(
   )
 }
 
+export async function updateAddress(contractId, address, gasPrice) {
+  const updateAddressSpinner = ora('Updating address in registry...').start()
+
+  const {registry} = await getContractAPIs()
+  const updateAddressTxResult = await contractTx(registry, 'updateAddress', contractId, {
+    from: address,
+    gasPrice: gasPrice,
+  })
+
+  updateAddressSpinner.succeed(`Contract address in registry has been changed`)
+  await delay(500)
+
+  print(
+    `\n` +
+      `Paid for transaction: ${formatWei(updateAddressTxResult.txPriceWei)}\n` +
+      `Tx hash: ${updateAddressTxResult.txHash}\n`,
+  )
+}
+
 export async function waitForKeepers(legacyContract, waitKeeperNumber, defaultKeeperNumber) {
   const spinner = ora('System is calling for keepers...').start()
 

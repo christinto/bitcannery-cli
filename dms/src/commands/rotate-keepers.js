@@ -32,6 +32,7 @@ import {
   waitForKeepers,
   activateContract,
   announceContinuationContract,
+  updateAddress,
 } from './deploy/utils'
 
 export function handler(argv) {
@@ -65,7 +66,7 @@ async function rotateKeepers(contractAddressOrID, pathToFile) {
   print(`You've been identified as the contract owner.`)
 
   if (state !== States.Active) {
-    print(`Owner can perform check-in only for a contract in Active state.`)
+    print(`It's possible to perform rotation only for a contract in Active state.`)
     print(`Keeper rotation process failed.`)
     return
   }
@@ -95,6 +96,7 @@ async function rotateKeepers(contractAddressOrID, pathToFile) {
   )
 
   await announceContinuationContract(depricatedInstance, legacyContract.address, address, gasPrice)
+  await updateAddress(contractAddressOrID, address, gasPrice)
 
   print('')
 

@@ -66,6 +66,8 @@ contract Registry {
     require(continuationInstance.getVersion() >= instance.getVersion());
 
     ctr.currentAddress = continuationAddress;
+
+    NewContract(id, continuationAddress, contracts.length);
   }
 
 }
