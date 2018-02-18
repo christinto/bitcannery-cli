@@ -42,10 +42,15 @@ export function handler(argv) {
 }
 
 async function rotateKeepers(contractAddressOrID, pathToFile) {
-  console.log('rotateKeepers', contractAddressOrID, pathToFile)
-
   const address = await printWelcomeAndUnlockAccount()
   const legacyData = await readLegacyData(pathToFile)
+
+  print(
+    `You are starting a process of keeper rotation. Please do not interrrupt ` +
+      `the execution of this command, keeper rotation procedure is a very ` +
+      `sensitive process, so wait until the program will exit. If the program ` +
+      `execution is interrupted, please contact support.\n`,
+  )
 
   const depricatedInstance = await getContractInstance(contractAddressOrID)
 
