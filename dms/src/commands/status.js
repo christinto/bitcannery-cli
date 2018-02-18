@@ -33,7 +33,7 @@ async function getStatus(contractAddressOrID) {
   ]
 
   console.error()
-  console.error('Contract address: ', instance.address)
+  console.error('Contract address:', instance.address)
   console.error('Owner:', owner)
   console.error('Contract state:', States.stringify(state))
 
