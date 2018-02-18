@@ -267,6 +267,17 @@ async function decryptData(
   }
 }
 
+/**
+ * legacyData - hex string w/ or w/o 0x prefix
+ * legacyHash - 0x sha3 solidity hash of legacy data
+ *
+ *  returns true or false
+ */
+function checkLegacySha3(legacyData, legacyHash) {
+  const legacyDataHash = sha3(legacyData)
+  return legacyHash === legacyDataHash
+}
+
 module.exports = {
   generateKeyPair,
   ecDecrypt,
@@ -275,4 +286,5 @@ module.exports = {
   decryptKeeperShare,
   aesEncrypt,
   aesDecrypt,
+  checkLegacySha3,
 }

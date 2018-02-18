@@ -37,12 +37,10 @@ export async function readLegacyData(pathToFile) {
 }
 
 export async function deployLegacyContract(contractId, checkInIntervalInSec, address, gasPrice) {
-  print('')
-
   const deploySpinner = ora('Publishing a new contract...').start()
 
   const blockGasLimit = await getBlockGasLimit()
-  const {LegacyContract, registry} = await getContractAPIs()
+  const {LegacyContract} = await getContractAPIs()
 
   const instance = await LegacyContract.new(checkInIntervalInSec, {
     from: address,
@@ -52,8 +50,22 @@ export async function deployLegacyContract(contractId, checkInIntervalInSec, add
 
   deploySpinner.succeed(`Contract address is ${instance.address}`)
 
+  return instance
+}
+
+export async function deployAndRegisterLegacyContract(
+  contractId,
+  checkInIntervalInSec,
+  address,
+  gasPrice,
+) {
+  print('')
+
+  const instance = await deployLegacyContract(contractId, checkInIntervalInSec, address, gasPrice)
+
   const registerSpinner = ora('Registering contract...').start()
 
+  const {registry} = await getContractAPIs()
   const registerTxResult = await contractTx(registry, 'addContract', contractId, instance.address, {
     from: address,
   })
@@ -68,6 +80,34 @@ export async function deployLegacyContract(contractId, checkInIntervalInSec, add
   )
 
   return instance
+}
+
+export async function announceContinuationContract(
+  instance,
+  newContractAddress,
+  address,
+  gasPrice,
+) {
+  const announceContinuationSpinner = ora('Announcing continuation contract...').start()
+
+  const announceTxResult = await contractTx(
+    instance,
+    'announceContinuationContract',
+    newContractAddress,
+    {
+      from: address,
+      gasPrice: gasPrice,
+    },
+  )
+
+  announceContinuationSpinner.succeed(`Continuation has been announced`)
+  await delay(500)
+
+  print(
+    `\n` +
+      `Paid for transaction: ${formatWei(announceTxResult.txPriceWei)}\n` +
+      `Tx hash: ${announceTxResult.txHash}\n`,
+  )
 }
 
 export async function waitForKeepers(legacyContract, waitKeeperNumber, defaultKeeperNumber) {

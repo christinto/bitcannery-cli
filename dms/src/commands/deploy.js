@@ -34,7 +34,7 @@ import getContractInstance from '../utils/get-contract-instance'
 import {
   printWelcomeAndUnlockAccount,
   readLegacyData,
-  deployLegacyContract,
+  deployAndRegisterLegacyContract,
   waitForKeepers,
   activateContract,
 } from './deploy/utils'
@@ -72,7 +72,7 @@ async function deploy(pathToFile) {
   const checkInIntervalInSec = Number(checkInInterval) * 24 * 60 * 60
 
   const gasPrice = await getGasPrice()
-  const legacyContract = await deployLegacyContract(
+  const legacyContract = await deployAndRegisterLegacyContract(
     contractId,
     checkInIntervalInSec,
     address,
