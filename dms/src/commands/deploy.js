@@ -23,21 +23,16 @@ import moment from 'moment'
 import dockerNames from 'docker-names'
 import BigNumber from 'bignumber.js'
 
+import {printWelcomeAndUnlockAccount} from '../contract-utils/common'
+import {readLegacyData, deployAndRegisterLegacyContract} from '../contract-utils/deploy'
+import {waitForKeepers, activateContract} from '../contract-utils/call-for-keepers'
+
 import runCommand from '../utils/run-command'
 import getContractAPIs from '../utils/get-contract-apis'
 import {generateKeyPair} from '../utils/encryption'
 import {getGasPrice} from '../utils/tx'
-
 import print from '../utils/print'
 import getContractInstance from '../utils/get-contract-instance'
-
-import {
-  printWelcomeAndUnlockAccount,
-  readLegacyData,
-  deployAndRegisterLegacyContract,
-  waitForKeepers,
-  activateContract,
-} from './deploy/utils'
 
 const MIN_CHECKIN_INTERVAL_IN_DAYS = 1 / (60 * 24) // 1 min
 const MAX_CHECKIN_INTERVAL_IN_DAYS = 365 * 3 // 3 years

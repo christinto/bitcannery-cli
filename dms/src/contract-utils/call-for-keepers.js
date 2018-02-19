@@ -2,132 +2,14 @@ import ora from 'ora'
 import inquirer from 'inquirer'
 import yn from 'yn'
 
-import readFile from '../../utils/read-file'
-import unlockAccount from '../../utils/unlock-account'
-import getContractAPIs from '../../utils/get-contract-apis'
-import {getNetworkName} from '../../utils/web3'
-import {contractTx, getBlockGasLimit, getGasPrice} from '../../utils/tx'
-import delay from '../../utils/delay'
-import {fetchKeeperProposals} from '../../utils/contract-api'
-import {encryptData} from '../../utils/encryption'
-
-import {formatWei} from '../../utils/format'
-
-import print, {question, ynQuestion} from '../../utils/print'
+import {contractTx} from '../utils/tx'
+import delay from '../utils/delay'
+import {fetchKeeperProposals} from '../utils/contract-api'
+import {encryptData} from '../utils/encryption'
+import {formatWei} from '../utils/format'
+import print from '../utils/print'
 
 const MIN_KEEPERS_NUMBER = 2
-
-export async function printWelcomeAndUnlockAccount() {
-  print('Welcome to KeeperNet v2!\n')
-
-  const networkName = await getNetworkName()
-  const address = await unlockAccount()
-  const {registry} = await getContractAPIs()
-
-  print(`Your address: ${address}`)
-  print(`Network: ${networkName}`)
-  print(`Registry: ${registry.address}\n`)
-
-  return address
-}
-
-export async function readLegacyData(pathToFile) {
-  const fileContent = await readFile(pathToFile)
-  return '0x' + fileContent.toString('hex')
-}
-
-export async function deployLegacyContract(contractId, checkInIntervalInSec, address, gasPrice) {
-  const deploySpinner = ora('Publishing a new contract...').start()
-
-  const blockGasLimit = await getBlockGasLimit()
-  const {LegacyContract} = await getContractAPIs()
-
-  const instance = await LegacyContract.new(checkInIntervalInSec, {
-    from: address,
-    gas: blockGasLimit, // TODO: estimate gas usage
-    gasPrice: gasPrice,
-  })
-
-  deploySpinner.succeed(`Contract address is ${instance.address}`)
-
-  return instance
-}
-
-export async function deployAndRegisterLegacyContract(
-  contractId,
-  checkInIntervalInSec,
-  address,
-  gasPrice,
-) {
-  print('')
-
-  const instance = await deployLegacyContract(contractId, checkInIntervalInSec, address, gasPrice)
-
-  const registerSpinner = ora('Registering contract...').start()
-
-  const {registry} = await getContractAPIs()
-  const registerTxResult = await contractTx(registry, 'addContract', contractId, instance.address, {
-    from: address,
-  })
-
-  registerSpinner.succeed(`Contract has been added to registry`)
-  await delay(500)
-
-  print(
-    `\n` +
-      `Paid for transaction: ${formatWei(registerTxResult.txPriceWei)}\n` +
-      `Tx hash: ${registerTxResult.txHash}\n`,
-  )
-
-  return instance
-}
-
-export async function announceContinuationContract(
-  instance,
-  newContractAddress,
-  address,
-  gasPrice,
-) {
-  const announceContinuationSpinner = ora('Announcing continuation contract...').start()
-
-  const announceTxResult = await contractTx(
-    instance,
-    'announceContinuationContract',
-    newContractAddress,
-    {
-      from: address,
-      gasPrice: gasPrice,
-    },
-  )
-
-  announceContinuationSpinner.succeed(`Continuation has been announced`)
-  await delay(500)
-
-  print(
-    `\n` +
-      `Paid for transaction: ${formatWei(announceTxResult.txPriceWei)}\n` +
-      `Tx hash: ${announceTxResult.txHash}\n`,
-  )
-}
-
-export async function updateAddress(contractId, address, gasPrice) {
-  const updateAddressSpinner = ora('Updating address in registry...').start()
-
-  const {registry} = await getContractAPIs()
-  const updateAddressTxResult = await contractTx(registry, 'updateAddress', contractId, {
-    from: address,
-    gasPrice: gasPrice,
-  })
-
-  updateAddressSpinner.succeed(`Contract address in registry has been changed`)
-  await delay(500)
-
-  print(
-    `\n` +
-      `Paid for transaction: ${formatWei(updateAddressTxResult.txPriceWei)}\n` +
-      `Tx hash: ${updateAddressTxResult.txHash}\n`,
-  )
-}
 
 export async function waitForKeepers(legacyContract, waitKeeperNumber, defaultKeeperNumber) {
   const spinner = ora('System is calling for keepers...').start()
@@ -135,7 +17,7 @@ export async function waitForKeepers(legacyContract, waitKeeperNumber, defaultKe
   let numKeepersProposals = (await legacyContract.getNumProposals()).toNumber()
 
   while (numKeepersProposals < waitKeeperNumber) {
-    await delay(1000)
+    await delay(500)
     numKeepersProposals = (await legacyContract.getNumProposals()).toNumber()
     spinner.text = `${numKeepersProposals} keepers have joined...`
   }
