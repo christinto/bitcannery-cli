@@ -67,6 +67,14 @@ contract Registry {
 
     ctr.currentAddress = continuationAddress;
 
+    // TODO: here we're adding the same id to the contracts array one more time; this allows Keeper
+    // clients that didn't participate in the contract and that were offline at the moment to later
+    // discover the continuation contract and send proposals.
+    //
+    // Ideally, we need to use logs/events filtering instead of relying on contracts array, but
+    // currently filtering works unreliably with light clients.
+    //
+    contracts.push(id);
     NewContract(id, continuationAddress, contracts.length);
   }
 

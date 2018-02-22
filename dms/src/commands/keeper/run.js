@@ -44,6 +44,7 @@ const PROCESS_N_CONTRACTS_IN_PARALLEL = 10
 // Don't call updateConfig more often than once in five seconds.
 const updateConfigThrottled = throttle(5000, updateConfig)
 
+const addressesWithProposalsSentSinceStart = {}
 const txQueue = new AsyncSerialQueue()
 
 async function runKeeper() {
@@ -212,8 +213,22 @@ async function checkContract(contract, api) {
 //
 
 async function handleCallForKeepersState(contract, api) {
-  const didSendProposal = await contract.didSendProposal(api.account)
-  if (didSendProposal) {
+  // We need to remember contract addresses we already decided to send proposals to since last
+  // start, as `handleCallForKeepersState` may be called multiple times in parallel with the same
+  // contract. This may happen because 1) there may be multiple entries of the same contract id
+  // into the `Registry.contracts` array, as keepers rotation adds the same id one more time;
+  // 2) when continuation contract is announced, both `Contract.continuationContractAddress` is set
+  // and a new entry is added to `Registry.contracts` array, and Keeper client handles both events.
+  // Since we're not serializing `Contract.didSendProposal` checks with transactions, the client
+  // will attempt to send two proposals to the same contract, which will result in the second
+  // transaction failing.
+  //
+  if (!addressesWithProposalsSentSinceStart[contract.address]) {
+    addressesWithProposalsSentSinceStart[contract.address] = true
+  } else {
+    return
+  }
+  if (await contract.didSendProposal(api.account)) {
     return
   }
   const checkResult = await checkContractEligibility(contract)
