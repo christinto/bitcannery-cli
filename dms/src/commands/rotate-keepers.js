@@ -25,13 +25,15 @@ import {announceContinuationContract, updateAddress} from '../contract-utils/kee
 import {cancelContract} from '../contract-utils/cancel'
 
 import runCommand from '../utils/run-command'
-import {generateKeyPair, checkLegacySha3} from '../utils/encryption'
+import {checkLegacySha3} from '../utils/encryption'
 import {getGasPrice, contractTx} from '../utils/tx'
 import {getBalance} from '../utils/web3'
 import {formatWei} from '../utils/format'
 import print from '../utils/print'
 import getContractInstance from '../utils/get-contract-instance'
 import {States, assembleEncryptedDataStruct} from '../utils/contract-api'
+
+import {DEFAULT_KEEPER_NUMBER} from '../constants'
 
 export function handler(argv) {
   return runCommand(() => {
@@ -81,7 +83,7 @@ async function rotateKeepers(contractAddressOrID, pathToFile) {
     print(`Keeper rotation process failed.`)
   }
 
-  // print checkin statistics
+  // TODO: print reliable keepers number
 
   const confirmRotation = await confirmStartKeeperRotation()
   if (!confirmRotation) {
@@ -103,15 +105,27 @@ async function rotateKeepers(contractAddressOrID, pathToFile) {
 
   print('Waiting for keepers...')
 
-  // const bobPrivate = await askForBobPrivate()
-  // console.log('bobPrivate', bobPrivate)
+  // TODO: it is required to reselect previous alive keepers
+  const selectedProposalIndices = await waitForKeepers(
+    legacyContract,
+    DEFAULT_KEEPER_NUMBER + 1,
+    DEFAULT_KEEPER_NUMBER,
+  )
 
-  // -----------------------------------
+  const publicKey = await askForBobPublic()
 
-  // activate new contract
+  await activateContract(
+    legacyContract,
+    selectedProposalIndices,
+    publicKey,
+    address,
+    gasPrice,
+    legacyData,
+  )
 
   await cancelContract(depricatedInstance, address)
-  // in the future we need to check contract chain to ensure that we don;t have several contract in active state
+
+  // TODO: add assertion that only top contract in active state
 
   print(
     `You have successfully re-deployed and replace a set of keepers in the legacy contract. ` +
@@ -127,26 +141,26 @@ async function rotateKeepers(contractAddressOrID, pathToFile) {
   )
 }
 
-async function askForBobPrivate() {
-  const ASK_BOBS_PRIVATE_KEY_QUESTION_ID = 'ASK_BOBS_PRIVATE_KEY_QUESTION_ID'
+async function askForBobPublic() {
+  const ASK_BOBS_PUBLIC_KEY_QUESTION_ID = 'ASK_BOBS_PUBLIC_KEY_QUESTION_ID'
 
   return await inquirer
     .prompt([
       {
         type: 'input',
-        name: ASK_BOBS_PRIVATE_KEY_QUESTION_ID,
-        message: `To perform keeper rotation please input Bob's private key`,
+        name: ASK_BOBS_PUBLIC_KEY_QUESTION_ID,
+        message: `To perform keeper rotation please input Bob's public key`,
         prefix: '',
         validate: input => {
-          if (input.substring(0, 2) !== '0x' || input.length !== 66) {
-            return `Passed key shoud be 0x string 66 characters long`
+          if (input.substring(0, 2) !== '0x' || input.length !== 132) {
+            return `Passed key shoud be 0x string 132 characters long`
           }
 
           return true
         },
       },
     ])
-    .then(x => x[ASK_BOBS_PRIVATE_KEY_QUESTION_ID])
+    .then(x => x[ASK_BOBS_PUBLIC_KEY_QUESTION_ID])
 }
 
 async function confirmStartKeeperRotation() {

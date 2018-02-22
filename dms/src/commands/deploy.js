@@ -92,8 +92,6 @@ async function deploy(pathToFile) {
 
   const {privateKey, publicKey} = generateKeyPair()
 
-  print(`\nBob's private key: ${privateKey}\n`)
-
   await activateContract(
     legacyContract,
     selectedProposalIndices,
@@ -104,12 +102,15 @@ async function deploy(pathToFile) {
   )
 
   print(
-    `\nYou must send the key to Bob using secure channel. If you ` +
+    `\nHere is Bob's key pair. You must send the private key to Bob using secure channel. If you ` +
       `don't give it to Bob, he won't be able to decrypt the data. If you transfer it ` +
-      `using non-secure channel, anyone will be able to decrypt the data. Bob's private key:\n\n` +
+      `using non-secure channel, anyone will be able to decrypt the data.\n\n` +
+      `Bob's private key:\n` +
       `${privateKey}\n\n` +
-      `Please store Bob's key pair and the legacy text securely, \n` +
-      `this will be required in case of keeper rotation procedure. \n` +
+      `Bob's public key:\n` +
+      `${publicKey}\n\n` +
+      `Please store Bob's public key and the legacy text securely, ` +
+      `this will be required in case of keeper rotation procedure.\n\n` +
       `You have to perform check-ins on time otherwise Bob can decrypt the legacy. ` +
       `Please use the following command to perform check-in: \n\n` +
       `  node index.js checkin ${contractId}\n`,
