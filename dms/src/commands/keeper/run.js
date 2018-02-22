@@ -289,6 +289,13 @@ async function handleActiveState(contract, api) {
     return
   }
 
+  const {checkInNeeded, availableBalance} = await inspectActiveContract(contract, api)
+  if (checkInNeeded) {
+    await performCheckIn(contract, availableBalance, api)
+  }
+}
+
+async function inspectActiveContract(contract, {account}) {
   const [keeper, checkInInterval, lastOwnerCheckInAt] = [
     assembleKeeperStruct(await contract.activeKeepers(account)),
     (await contract.checkInInterval()).toNumber(),
@@ -297,23 +304,32 @@ async function handleActiveState(contract, api) {
 
   const now = Math.floor(Date.now() / 1000)
   // const now = (await contract.debugTimestamp()).toNumber() + 60
+
   const passedSinceOwnerCheckIn = now - lastOwnerCheckInAt
 
-  if (passedSinceOwnerCheckIn <= checkInInterval && keeper.lastCheckInAt >= lastOwnerCheckInAt) {
-    return
-  }
+  const checkInNeeded =
+    passedSinceOwnerCheckIn > checkInInterval || keeper.lastCheckInAt < lastOwnerCheckInAt
 
+  return {checkInNeeded, availableBalance: keeper.balance}
+}
+
+async function performCheckIn(contract, availableBalance, api) {
   console.error(`==> Performing check-in for contract ${contract.address}...`)
 
   // TODO: check that ETH to be received is bigger than TX price, and don't check in otherwise
 
-  await ensureUnlocked(account)
+  await ensureUnlocked(api.account)
 
   const {txHash, txPriceWei} = await txQueue.enqueueAndWait(() =>
-    contractTx(contract, 'keeperCheckIn', {from: account}),
+    contractTx(contract, 'keeperCheckIn', {from: api.account}),
   )
 
-  printTx(`performing check-in for contract ${contract.address}`, txHash, keeper.balance, txPriceWei)
+  printTx(
+    `performing check-in for contract ${contract.address}`,
+    txHash,
+    availableBalance,
+    txPriceWei,
+  )
 
   const state = (await contract.state()).toNumber()
 
@@ -321,8 +337,33 @@ async function handleActiveState(contract, api) {
     console.error(`==> Owner disappeared, started keys collection`)
     await handleCallForKeysState(contract, api)
   } else {
-    // TODO: check for continuation contract
+    await handleContinuationContractIfAny(contract, api)
   }
+}
+
+async function handleContinuationContractIfAny(contract, api) {
+  const continuationContract = await getContinuationContract(contract, api)
+  if (continuationContract) {
+    await checkNewContract(continuationContract, api)
+  }
+}
+
+async function getContinuationContract(contract, api) {
+  let currentContract = contract
+  let continuationAddress
+
+  do {
+    continuationAddress = validAddressOrNull(await currentContract.continuationContractAddress())
+    if (continuationAddress) {
+      currentContract = await api.LegacyContract.at(continuationAddress).then(x => x)
+    }
+  } while (continuationAddress)
+
+  return currentContract === contract ? null : currentContract
+}
+
+function validAddressOrNull(address) {
+  return new BigNumber(address).isZero() ? null : address
 }
 
 //
@@ -378,8 +419,10 @@ async function handleCallForKeysState(contract, {account}) {
 // State: Cancelled
 //
 
-async function handleCancelledState(contract, {account}) {
+async function handleCancelledState(contract, api) {
+  const {account} = api
   const keeper = assembleKeeperStruct(await contract.activeKeepers(account))
+
   // TODO: check that ETH to be received is bigger than TX price, and don't check in otherwise
   if (keeper.balance.isZero()) {
     return
@@ -393,11 +436,16 @@ async function handleCancelledState(contract, {account}) {
     contractTx(contract, 'keeperCheckIn', {from: account}),
   )
 
-  printTx(`performing final check-in for contract ${contract.address}`,
-    txHash, keeper.balance, txPriceWei)
+  printTx(
+    `performing final check-in for contract ${contract.address}`,
+    txHash,
+    keeper.balance,
+    txPriceWei,
+  )
+
   contractsStore.removeContract(contract.address)
 
-  // TODO: check for continuation contract
+  await handleContinuationContractIfAny(contract, api)
 }
 
 //
