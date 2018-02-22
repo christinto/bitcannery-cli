@@ -123,7 +123,7 @@ async function pickCheapestKeepers(keeperProposals, keeperNumber) {
 
 async function askIsDefaultKeeperNumber(defaultKeeperNumber, keepingFeeForDefault) {
   const IS_DEFAULT_KEEPER_NUMBER = 'IS_DEFAULT_KEEPER_NUMBER'
-  const DEFAULT_KEEPER_NUMBER = 'DEFAULT_KEEPER_NUMBER'
+  const DEFAULT_KEEPERS_NUMBER = 'DEFAULT_KEEPERS_NUMBER'
   const DIFFERENT_KEEPER_NUMBER = 'DIFFERENT_KEEPER_NUMBER'
 
   const keeperPolicy = await inquirer
@@ -138,7 +138,7 @@ async function askIsDefaultKeeperNumber(defaultKeeperNumber, keepingFeeForDefaul
             name: `${defaultKeeperNumber} keepers, ${formatWei(
               keepingFeeForDefault,
             )} keeping fee for each check-in interval (recommended)`,
-            value: DEFAULT_KEEPER_NUMBER,
+            value: DEFAULT_KEEPERS_NUMBER,
           },
           {
             name: `Different number of keepers`,
@@ -150,7 +150,7 @@ async function askIsDefaultKeeperNumber(defaultKeeperNumber, keepingFeeForDefaul
     ])
     .then(x => x[IS_DEFAULT_KEEPER_NUMBER])
 
-  return keeperPolicy === DEFAULT_KEEPER_NUMBER
+  return keeperPolicy === DEFAULT_KEEPERS_NUMBER
 }
 
 async function askAdjustedKeepersNumber(minKeepers, maxKeepers) {

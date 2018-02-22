@@ -33,7 +33,7 @@ import print from '../utils/print'
 import getContractInstance from '../utils/get-contract-instance'
 import {States, assembleEncryptedDataStruct} from '../utils/contract-api'
 
-import {DEFAULT_KEEPER_NUMBER} from '../constants'
+import {DEFAULT_KEEPERS_NUMBER} from '../constants'
 
 export function handler(argv) {
   return runCommand(() => {
@@ -108,8 +108,8 @@ async function rotateKeepers(contractAddressOrID, pathToFile) {
   // TODO: it is required to reselect previous alive keepers
   const selectedProposalIndices = await waitForKeepers(
     legacyContract,
-    DEFAULT_KEEPER_NUMBER + 1,
-    DEFAULT_KEEPER_NUMBER,
+    DEFAULT_KEEPERS_NUMBER + 1,
+    DEFAULT_KEEPERS_NUMBER,
   )
 
   const publicKey = await askForBobPublic()

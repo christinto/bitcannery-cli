@@ -37,7 +37,7 @@ import getContractInstance from '../utils/get-contract-instance'
 import {
   MIN_CHECKIN_INTERVAL_IN_DAYS,
   MAX_CHECKIN_INTERVAL_IN_DAYS,
-  DEFAULT_KEEPER_NUMBER,
+  DEFAULT_KEEPERS_NUMBER,
 } from '../constants'
 
 export function handler(argv) {
@@ -86,8 +86,8 @@ async function deploy(pathToFile) {
 
   const selectedProposalIndices = await waitForKeepers(
     legacyContract,
-    DEFAULT_KEEPER_NUMBER + 1,
-    DEFAULT_KEEPER_NUMBER,
+    DEFAULT_KEEPERS_NUMBER + 1,
+    DEFAULT_KEEPERS_NUMBER,
   )
 
   const {privateKey, publicKey} = generateKeyPair()
@@ -149,8 +149,8 @@ async function continueDeploy(contractAddressOrID, pathToFile) {
 
   const selectedProposalIndices = await waitForKeepers(
     legacyContract,
-    DEFAULT_KEEPER_NUMBER + 1,
-    DEFAULT_KEEPER_NUMBER,
+    DEFAULT_KEEPERS_NUMBER + 1,
+    DEFAULT_KEEPERS_NUMBER,
   )
 
   const {privateKey, publicKey} = generateKeyPair()
