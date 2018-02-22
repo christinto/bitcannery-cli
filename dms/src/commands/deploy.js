@@ -34,9 +34,11 @@ import {getGasPrice} from '../utils/tx'
 import print from '../utils/print'
 import getContractInstance from '../utils/get-contract-instance'
 
-const MIN_CHECKIN_INTERVAL_IN_DAYS = 1 / (60 * 24) // 1 min
-const MAX_CHECKIN_INTERVAL_IN_DAYS = 365 * 3 // 3 years
-const DEFAULT_KEEPER_NUMBER = 2
+import {
+  MIN_CHECKIN_INTERVAL_IN_DAYS,
+  MAX_CHECKIN_INTERVAL_IN_DAYS,
+  DEFAULT_KEEPER_NUMBER,
+} from '../constants'
 
 export function handler(argv) {
   return runCommand(() => {

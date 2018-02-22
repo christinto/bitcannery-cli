@@ -9,7 +9,7 @@ import {encryptData} from '../utils/encryption'
 import {formatWei} from '../utils/format'
 import print from '../utils/print'
 
-const MIN_KEEPERS_NUMBER = 2
+import {MIN_KEEPERS_NUMBER} from '../constants'
 
 export async function waitForKeepers(legacyContract, waitKeeperNumber, defaultKeeperNumber) {
   const spinner = ora('System is calling for keepers...').start()
