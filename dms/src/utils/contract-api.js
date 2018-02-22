@@ -1,7 +1,8 @@
 // WARN: code in this file is dependent on layout of data structures in CryptoLegacy.sol
 // contract, so these two files need to be kept in sync.
-
-const BigNumber = require('bignumber.js')
+import BigNumber from 'bignumber.js'
+import UserError from './user-error'
+import getContractAPIs from './get-contract-apis'
 
 export const States = {
   CallForKeepers: 0,
@@ -72,4 +73,24 @@ export async function fetchOwnerContracts(registryContract, ownerAddress) {
     .fill(0)
     .map((_, i) => registryContract.getContractByOwner(ownerAddress, i))
   return (await Promise.all(promises)).map(rawContract => rawContract.toString())
+}
+
+export async function fetchContractChain(contractId) {
+  const {LegacyContract, registry} = await getContractAPIs()
+  let address, contract
+
+  address = await registry.getContractInitialAddress(contractId)
+
+  if (new BigNumber(address).isZero()) {
+    throw new UserError(`there is no contract with id "${contractId}"`)
+  }
+
+  const chain = []
+  while (!new BigNumber(address).isZero()) {
+    contract = await LegacyContract.at(address).then(x => x)
+    chain.push(contract)
+    address = await contract.getContinuationContractAddress()
+  }
+
+  return chain
 }
