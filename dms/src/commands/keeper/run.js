@@ -246,15 +246,25 @@ async function sendProposal(contract, account) {
   await ensureUnlocked(account)
 
   const {txHash, txPriceWei} = await txQueue.enqueueAndWait(async () => {
-    console.error(`Sending proposal for contract ${contract.address}, fee per owner ` +
-      `check-in: ${formatWei(keepingFee)}...`)
-    return contractTx(contract, 'submitKeeperProposal', config.keeper.keypair.publicKey, keepingFee, {
-      from: account,
-    }),
+    console.error(
+      `Sending proposal for contract ${contract.address}, fee per owner ` +
+        `check-in: ${formatWei(keepingFee)}...`,
+    )
+    return contractTx(
+      contract,
+      'submitKeeperProposal',
+      config.keeper.keypair.publicKey,
+      keepingFee,
+      {
+        from: account,
+      },
+    )
   })
 
-  console.error(`Done sending proposal for contract ${contract.address}, transaction hash: ${txHash}`)
-  console.error(`Paid for transaction: ${formatWei(txPriceWei)}`)
+  console.error(
+    `Done sending proposal for contract ${contract.address}, transaction hash: ${txHash}\n` +
+      `Paid for transaction: ${formatWei(txPriceWei)}`,
+  )
 }
 
 async function calculateKeepingFee(contract) {
