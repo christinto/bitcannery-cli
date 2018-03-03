@@ -52,14 +52,14 @@ async function rotateKeepers(contractAddressOrID, pathToFile) {
       `execution is interrupted, please contact support.\n`,
   )
 
-  const depricatedInstance = await getContractInstance(contractAddressOrID)
+  const previousInstance = await getContractInstance(contractAddressOrID)
 
   const [state, owner, encryptedDataRaw, checkInIntervalInSec, checkInPrice] = [
-    (await depricatedInstance.state()).toNumber(),
-    await depricatedInstance.owner(),
-    await depricatedInstance.encryptedData(),
-    (await depricatedInstance.checkInInterval()).toNumber(),
-    await depricatedInstance.calculateApproximateCheckInPrice(),
+    (await previousInstance.state()).toNumber(),
+    await previousInstance.owner(),
+    await previousInstance.encryptedData(),
+    (await previousInstance.checkInInterval()).toNumber(),
+    await previousInstance.calculateApproximateCheckInPrice(),
   ]
 
   if (owner !== address) {
@@ -100,7 +100,7 @@ async function rotateKeepers(contractAddressOrID, pathToFile) {
     gasPrice,
   )
 
-  await announceContinuationContract(depricatedInstance, legacyContract.address, address, gasPrice)
+  await announceContinuationContract(previousInstance, legacyContract.address, address, gasPrice)
   await updateAddress(contractAddressOrID, address, gasPrice)
 
   print('Waiting for keepers...')
@@ -123,7 +123,7 @@ async function rotateKeepers(contractAddressOrID, pathToFile) {
     legacyData,
   )
 
-  await cancelContract(depricatedInstance, address)
+  await cancelContract(previousInstance, address)
 
   // TODO: add assertion that only top contract in active state
 
