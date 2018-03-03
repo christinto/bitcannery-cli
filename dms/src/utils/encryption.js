@@ -209,12 +209,11 @@ function shareFromHex(hex) {
 
 async function decryptKeeperShare(
   encryptedShares,
-  numKeepers,
   keeperIndex,
   keeperPrivateKey,
   shareHash,
 ) {
-  const encryptedSharesArray = packingUtils.unpack(encryptedShares, numKeepers)
+  const encryptedSharesArray = packingUtils.unpack(encryptedShares)
   const encryptedShareData = encryptedSharesArray[keeperIndex]
   const encryptedShare = packingUtils.unpackElliptic(encryptedShareData)
   const shareHex = await ecDecrypt(encryptedShare, keeperPrivateKey)

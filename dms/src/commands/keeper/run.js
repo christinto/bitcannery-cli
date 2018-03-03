@@ -410,7 +410,6 @@ async function handleCallForKeysState(contract, {account}) {
 
   const keyPart = await encryptionUtils.decryptKeeperShare(
     encryptedData.encryptedKeyParts,
-    numKeepers,
     myIndex,
     config.keeper.keypair.privateKey,
     keeper.keyPartHash,
