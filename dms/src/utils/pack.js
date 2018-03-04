@@ -38,7 +38,7 @@ function unpack(data) {
     const segmentLength = parseInt(data.substr(i, SEGMENT_LENGTH_FIELD_LENGTH), 16)
     i += SEGMENT_LENGTH_FIELD_LENGTH
 
-    if (dataLength - i < segmentLength) {
+    if (!(segmentLength > 0) || dataLength - i < segmentLength) {
       throw new Error(`malformed data`)
     }
 
