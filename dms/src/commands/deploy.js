@@ -43,9 +43,9 @@ import {
 export function handler(argv) {
   return runCommand(() => {
     if (argv.continueId) {
-      continueDeploy(argv.continueId, argv.pathToFile)
+      return continueDeploy(argv.continueId, argv.pathToFile)
     } else {
-      deploy(argv.pathToFile)
+      return deploy(argv.pathToFile)
     }
   })
 }

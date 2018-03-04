@@ -37,7 +37,7 @@ import {DEFAULT_KEEPERS_NUMBER} from '../constants'
 
 export function handler(argv) {
   return runCommand(() => {
-    rotateKeepers(argv.contractAddressOrID, argv.pathToFile)
+    return rotateKeepers(argv.contractAddressOrID, argv.pathToFile)
   })
 }
 
