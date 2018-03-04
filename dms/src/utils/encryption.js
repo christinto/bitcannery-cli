@@ -3,6 +3,7 @@ const eccrypto = require('eccrypto')
 const secrets = require('secrets.js-grempe')
 const aesjs = require('aes-js')
 const soliditySha3 = require('solidity-sha3').default
+const flatten = require('lodash.flatten')
 
 const packingUtils = require('./pack')
 const prefixUtils = require('./prefix')
@@ -112,7 +113,7 @@ async function ecDecrypt(encrypted, privateKey) {
  * numKeepersToRecover - number of keepers sufficient to recover the key
  *
  *  returns {
- *    encryptedKeyParts - packed 0x hex string of encrypted keeper keys
+ *    encryptedKeyParts - array of encrypted keeper keys w/ 0x prefixes
  *    keyPartHashes - array of 0x sha3 solidity hashes of keeper keys
  *    shareLength - length of share string in hex characters
  *    legacyDataHash - 0x sha3 solidity hash of legacy data
@@ -135,7 +136,7 @@ async function encryptData(legacyData, bobPublicKey, keeperPublicKeys, numKeeper
 
   const keeperCount = keeperPublicKeys.length
 
-  const encryptedKeyPartsArray = Array(keeperCount)
+  const encryptedKeyParts = Array(keeperCount)
   const keyPartHashes = Array(keeperCount)
 
   const keeperSecrets = secrets.share(
@@ -164,11 +165,9 @@ async function encryptData(legacyData, bobPublicKey, keeperPublicKeys, numKeeper
       Buffer.from(prefixUtils.trim0x(keeperSecret), 'hex'),
     )
 
-    encryptedKeyPartsArray[i] = packingUtils.packElliptic(encryptedKeyPart)
+    encryptedKeyParts[i] = packingUtils.packElliptic(encryptedKeyPart)
     keyPartHashes[i] = sha3(keeperSecret)
   }
-
-  const encryptedKeyParts = packingUtils.pack(encryptedKeyPartsArray)
 
   return {
     encryptedKeyParts,
@@ -207,19 +206,19 @@ function shareFromHex(hex) {
   return (bits + hex.substr(2)).toLowerCase()
 }
 
-async function decryptKeeperShare(
-  encryptedShares,
-  keeperIndex,
-  keeperPrivateKey,
-  shareHash,
-) {
-  const encryptedSharesArray = packingUtils.unpack(encryptedShares)
+async function decryptKeeperShare(encryptedSharesChunks, keeperIndex, keeperPrivateKey, shareHash) {
+  const encryptedSharesArray = flatten(
+    encryptedSharesChunks.map(sharesChunk => packingUtils.unpack(sharesChunk)),
+  )
+
   const encryptedShareData = encryptedSharesArray[keeperIndex]
   const encryptedShare = packingUtils.unpackElliptic(encryptedShareData)
   const shareHex = await ecDecrypt(encryptedShare, keeperPrivateKey)
+
   if (sha3(shareHex) !== shareHash) {
     throw new Error(`hashes don't match`)
   }
+
   return shareHex
 }
 

@@ -1,15 +1,18 @@
+import assert from 'assert'
 import ora from 'ora'
 import inquirer from 'inquirer'
 import yn from 'yn'
+import BigNumber from 'bignumber.js'
 
 import {contractTx} from '../utils/tx'
 import delay from '../utils/delay'
 import {fetchKeeperProposals} from '../utils/contract-api'
 import {encryptData} from '../utils/encryption'
+import packingUtils from '../utils/pack'
 import {formatWei} from '../utils/format'
 import print from '../utils/print'
 
-import {MIN_KEEPERS_NUMBER} from '../constants'
+import {MIN_KEEPERS_NUMBER, MAX_KEEPERS_IN_CHUNK} from '../constants'
 
 export async function waitForKeepers(legacyContract, waitKeeperNumber, defaultKeeperNumber) {
   const spinner = ora('System is calling for keepers...').start()
@@ -75,7 +78,12 @@ export async function activateContract(
 ) {
   const activationPrice = await legacyContract.calculateActivationPrice(selectedProposalIndices)
 
-  const spinner = ora('Activating contract...').start()
+  // TODO: pre-calculate cumulative TXes cost and confirm total activation price, like:
+  //
+  // Alice, activating this contract will cost you X ETH, including Ethereum network
+  // fee of Y ETH. Do you want to proceed?
+
+  const spinner = ora(`Encrypting data...`).start()
 
   const proposals = await fetchKeeperProposals(legacyContract)
   const selectedProposals = selectedProposalIndices.map(i => proposals[i])
@@ -89,12 +97,38 @@ export async function activateContract(
     numKeepersToRecover,
   )
 
-  const acceptTxResult = await contractTx(
-    legacyContract,
-    'acceptKeepers',
+  const chunks = splitSelectedKeepersInChunks(
     selectedProposalIndices,
     encryptionResult.keyPartHashes,
     encryptionResult.encryptedKeyParts,
+  )
+
+  spinner.succeed(`Encrypting data`)
+
+  let totalTxCostWei = new BigNumber(0)
+
+  for (let i = 0; i < chunks.length; ++i) {
+    const chunk = chunks[i]
+    spinner.start(`Accepting keepers (chunk ${i + 1}/${chunks.length})...`)
+
+    const acceptTxResult = await contractTx(
+      legacyContract,
+      'acceptKeepers',
+      chunk.selectedProposalIndices,
+      chunk.keyPartHashes,
+      chunk.encryptedKeyParts,
+      {from: address},
+    )
+
+    totalTxCostWei = totalTxCostWei.plus(acceptTxResult.txPriceWei)
+    spinner.succeed(`Accepting keepers (chunk ${i + 1}/${chunks.length}): ${acceptTxResult.txHash}`)
+  }
+
+  spinner.start(`Activating contract...`)
+
+  const activateTxResult = await contractTx(
+    legacyContract,
+    'activate',
     encryptionResult.shareLength,
     encryptionResult.encryptedLegacyData,
     encryptionResult.legacyDataHash,
@@ -102,13 +136,34 @@ export async function activateContract(
     {from: address, value: activationPrice},
   )
 
-  spinner.succeed(`Contract has been activated`)
+  spinner.succeed(`Contract has been activated: ${activateTxResult.txHash}`)
+  totalTxCostWei = totalTxCostWei.plus(activateTxResult.txPriceWei)
+
   await delay(500)
 
-  print(
-    `\nTx hash: ${acceptTxResult.txHash}\n` +
-      `Paid for transaction: ${formatWei(acceptTxResult.txPriceWei)}`,
-  )
+  print(`\nPaid for contract activation: ${formatWei(totalTxCostWei)}`)
+}
+
+function splitSelectedKeepersInChunks(selectedProposalIndices, keyPartHashes, encryptedKeyParts) {
+  let result = []
+
+  const numSelectedProposals = selectedProposalIndices.length
+  const numChunks = Math.ceil(numSelectedProposals / MAX_KEEPERS_IN_CHUNK)
+
+  assert.equal(numSelectedProposals, keyPartHashes.length)
+  assert.equal(numSelectedProposals, encryptedKeyParts.length)
+
+  for (let iChunk = 0; iChunk < numChunks; ++iChunk) {
+    const iLeftKeeper = iChunk * MAX_KEEPERS_IN_CHUNK
+    const iRightKeeper = Math.min(numSelectedProposals, iLeftKeeper + MAX_KEEPERS_IN_CHUNK)
+    result.push({
+      selectedProposalIndices: selectedProposalIndices.slice(iLeftKeeper, iRightKeeper),
+      keyPartHashes: keyPartHashes.slice(iLeftKeeper, iRightKeeper),
+      encryptedKeyParts: packingUtils.pack(encryptedKeyParts.slice(iLeftKeeper, iRightKeeper)),
+    })
+  }
+
+  return result
 }
 
 async function pickCheapestKeepers(keeperProposals, keeperNumber) {

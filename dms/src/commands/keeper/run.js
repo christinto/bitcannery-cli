@@ -9,7 +9,13 @@ export const builder = {}
 import BigNumber from 'bignumber.js'
 import assert from 'assert'
 
-import {States, assembleKeeperStruct, assembleEncryptedDataStruct} from '../../utils/contract-api'
+import {
+  States,
+  assembleKeeperStruct,
+  assembleEncryptedDataStruct,
+  fetchEncryptedKeyPartsChunks,
+} from '../../utils/contract-api'
+
 import getContractAPIs from '../../utils/get-contract-apis'
 import {getLatestBlock} from '../../utils/web3'
 import {formatWei} from '../../utils/format'
@@ -238,7 +244,15 @@ async function handleCallForKeepersState(contract, api) {
   }
 
   contractsStore.addContract(contract.address)
-  await sendProposal(contract, api.account)
+
+  try {
+    await sendProposal(contract, api.account)
+  } catch (err) {
+    console.error(`Failed to send proposal to contract ${contract.address}: ${err.stack}`)
+    contractsStore.removeContract(contract.address)
+    return
+  }
+
   watchContract(contract, api)
 }
 
@@ -394,9 +408,9 @@ async function handleCallForKeysState(contract, {account}) {
 
   console.error(`==> Supplying key part for contract ${contract.address}...`)
 
-  const [numKeepers, encryptedData] = [
-    (await contract.getNumKeepers()).toNumber(),
-    assembleEncryptedDataStruct(await contract.encryptedData()),
+  const [numKeepers, encryptedKeyPartsChunks] = [
+    +await contract.getNumKeepers(),
+    await fetchEncryptedKeyPartsChunks(contract),
   ]
 
   const activeKeepersAddresses = await Promise.all(
@@ -409,7 +423,7 @@ async function handleCallForKeysState(contract, {account}) {
   updateConfigThrottled()
 
   const keyPart = await encryptionUtils.decryptKeeperShare(
-    encryptedData.encryptedKeyParts,
+    encryptedKeyPartsChunks,
     myIndex,
     config.keeper.keypair.privateKey,
     keeper.keyPartHash,

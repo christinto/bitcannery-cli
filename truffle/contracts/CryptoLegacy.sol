@@ -58,7 +58,6 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     bytes encryptedData;
     bytes16 aesCounter;
     bytes32 dataHash; // sha-3 hash
-    bytes encryptedKeyParts; // packed array of key parts
     uint16 shareLength;
     bytes[] suppliedKeyParts;
   }
@@ -74,6 +73,7 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
 
   States public state = States.CallForKeepers;
 
+  bytes[] public encryptedKeyPartsChunks;
   EncryptedData public encryptedData;
 
   KeeperProposal[] public keeperProposals;
@@ -134,6 +134,16 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
   }
 
 
+  function getNumEncryptedKeyPartsChunks() external view returns (uint) {
+    return encryptedKeyPartsChunks.length;
+  }
+
+
+  function getEncryptedKeyPartsChunk(uint index) external view returns (bytes) {
+    return encryptedKeyPartsChunks[index];
+  }
+
+
   function getNumSuppliedKeyParts() external view returns (uint) {
     return encryptedData.suppliedKeyParts.length;
   }
@@ -188,50 +198,19 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     return _totalKeepingFee;
   }
 
-
-  // Called by owner to accept selected proposals and activate the contract.
+  // Called by owner to accept selected Keeper proposals.
+  // May be called multiple times.
   //
   function acceptKeepers(
     uint[] selectedProposalIndices,
     bytes32[] keyPartHashes,
-    bytes encryptedKeyParts,
-    uint16 shareLength,
-    bytes _encryptedData,
-    bytes32 dataHash,
-    bytes16 aesCounter
-  ) payable external
+    bytes encryptedKeyParts
+  ) external
     ownerOnly()
     atState(States.CallForKeepers)
   {
-    encryptedData = EncryptedData({
-      encryptedData: _encryptedData,
-      aesCounter: aesCounter,
-      dataHash: dataHash,
-      encryptedKeyParts: encryptedKeyParts,
-      shareLength: shareLength,
-      suppliedKeyParts: new bytes[](0)
-    });
-
-    totalKeepingFee = writeKeepers(selectedProposalIndices, keyPartHashes);
-
-    uint balance = this.balance;
-    require(balance >= totalKeepingFee);
-
-    state = States.Active;
-    lastOwnerCheckInAt = getBlockTimestamp();
-  }
-
-
-  // Returns: sum of keeping fees of all selected Keepers.
-  //
-  function writeKeepers(
-    uint[] selectedProposalIndices,
-    bytes32[] keyPartHashes
-  )
-  internal returns (uint)
-  {
     uint timestamp = getBlockTimestamp();
-    uint _totalKeepingFee = 0;
+    uint chunkKeepingFee = 0;
 
     for (uint i = 0; i < selectedProposalIndices.length; i++) {
       uint proposalIndex = selectedProposalIndices[i];
@@ -247,10 +226,47 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
       });
 
       activeKeepersAddresses.push(proposal.keeperAddress);
-      _totalKeepingFee = SafeMath.add(_totalKeepingFee, proposal.keepingFee);
+      chunkKeepingFee = SafeMath.add(chunkKeepingFee, proposal.keepingFee);
     }
 
-    return _totalKeepingFee;
+    totalKeepingFee = SafeMath.add(totalKeepingFee, chunkKeepingFee);
+    encryptedKeyPartsChunks.push(encryptedKeyParts);
+  }
+
+  // Called by owner to activate the contract and distribute keys between Keepers
+  // accepted previously using `acceptKeepers` function.
+  //
+  function activate(
+    uint16 shareLength,
+    bytes _encryptedData,
+    bytes32 dataHash,
+    bytes16 aesCounter
+  ) payable external
+    ownerOnly()
+    atState(States.CallForKeepers)
+  {
+    require(activeKeepersAddresses.length > 0);
+
+    uint balance = this.balance;
+    require(balance >= totalKeepingFee);
+
+    uint timestamp = getBlockTimestamp();
+    lastOwnerCheckInAt = timestamp;
+
+    for (uint i = 0; i < activeKeepersAddresses.length; i++) {
+      ActiveKeeper storage keeper = activeKeepers[activeKeepersAddresses[i]];
+      keeper.lastCheckInAt = timestamp;
+    }
+
+    encryptedData = EncryptedData({
+      encryptedData: _encryptedData,
+      aesCounter: aesCounter,
+      dataHash: dataHash,
+      shareLength: shareLength,
+      suppliedKeyParts: new bytes[](0)
+    });
+
+    state = States.Active;
   }
 
 

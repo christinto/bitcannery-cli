@@ -41,9 +41,8 @@ export function assembleEncryptedDataStruct(rawStruct) {
     encryptedData: rawStruct[0],
     aesCounter: rawStruct[1],
     dataHash: rawStruct[2],
-    encryptedKeyParts: rawStruct[3],
-    shareLength: rawStruct[4].toNumber(),
-    // suppliedKeyParts: rawStruct[5],
+    shareLength: rawStruct[3].toNumber(),
+    // suppliedKeyParts: rawStruct[4],
     // encoding bytes[] is not supported by current version of Solidity
   }
 }
@@ -65,6 +64,14 @@ export async function fetchKeeperProposals(contract) {
   const numProposals = await contract.getNumProposals()
   const promises = new Array(+numProposals).fill(0).map((_, i) => contract.keeperProposals(i))
   return (await Promise.all(promises)).map(rawProposal => assembleProposalStruct(rawProposal))
+}
+
+export async function fetchEncryptedKeyPartsChunks(contract) {
+  const numChunks = await contract.getNumEncryptedKeyPartsChunks()
+  const promises = new Array(+numChunks)
+    .fill(0)
+    .map((_, i) => contract.getEncryptedKeyPartsChunk(i))
+  return await Promise.all(promises)
 }
 
 export async function fetchOwnerContracts(registryContract, ownerAddress) {
