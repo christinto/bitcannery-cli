@@ -34,7 +34,7 @@ async function decrypt(contractAddressOrID) {
   // TODO: in case when supplied keys number is small
   // in comparison with keepers number display a warning
   if (state !== States.CallForKeys) {
-    console.error(`Contract can't be decrypted in this state`)
+    console.error(`Contract can't be decrypted yet`)
     return
   }
 
@@ -61,8 +61,8 @@ async function decrypt(contractAddressOrID) {
 
   if (legacy === null) {
     console.error(`Failed to decrypt the legacy.`)
-    console.error(`Please make sure that keepers supplied required for decryption`)
-    console.error(`number of keys and double check your private key.`)
+    console.error(`Please make sure that enough keepers have supplied`)
+    console.error(`their keys and double check your private key.`)
     return
   }
 
