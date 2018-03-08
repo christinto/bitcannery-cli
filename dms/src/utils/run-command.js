@@ -6,6 +6,9 @@ export default async function runCommand(fn, exitOnError = true) {
   } catch (err) {
     if (err instanceof UserError) {
       console.error(`\nError: ${err.message}`)
+      if (err.source && process.env.DEBUG && process.env.DEBUG != '0') {
+        console.error(err.source.stack)
+      }
       if (exitOnError) {
         process.exit(1)
       }
