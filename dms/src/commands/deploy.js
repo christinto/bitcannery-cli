@@ -77,10 +77,11 @@ async function deploy(pathToFile) {
   )
 
   print(
-    `Contract "${contractId}" has been deployed to the network. Contract address is ${address}. ` +
-      `You have to wait until the keepers send their proposals with price for keeping the legacy, ` +
-      `it will take some time. It's not necessary to keep this terminal session opened, ` +
-      `you can always continue the deployment process with following command: \n\n` +
+    `Contract "${contractId}" has been deployed to the network. Contract address is ` +
+      `${legacyContract.address}. You will have to wait until keepers send their proposals ` +
+      `with price for keeping the legacy, it will take some time. It's not necessary to keep ` +
+      `this terminal session active, you can always continue the deployment process with ` +
+      `the following command: \n\n` +
       `  node index.js deploy ${pathToFile} -c ${contractId}\n`,
   )
 
