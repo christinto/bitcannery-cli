@@ -79,5 +79,5 @@ function coerce(src, dest) {
 }
 
 function isMap(o) {
-  return typeof o == 'object' && (!o.constructor || o.constructor == Object)
+  return !!o && typeof o == 'object' && (!o.constructor || o.constructor == Object)
 }
