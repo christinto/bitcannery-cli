@@ -35,8 +35,7 @@ async function importConfig(pathToFile) {
   const decryptedConfigBuf = passwordDecryptData(encryptedConfig, password)
   const decryptConfig = JSON.parse(decryptedConfigBuf.toString('utf8'))
 
-  // saveDecryptedConfig(decryptedConfig)
-  console.log(`config:`, decryptConfig)
+  persistentConfig.set(decryptedConfig)
 
   print(`Config successfully imported from ${pathToFile}`)
 }
@@ -72,8 +71,4 @@ function streamToString(stream) {
     // Send the buffer or you can put it into a var
     stream.on('end', _ => resolve(Buffer.concat(chunks).toString()))
   })
-}
-
-function saveDecryptedConfig(config) {
-  persistentConfig.set(config)
 }
