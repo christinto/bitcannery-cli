@@ -34,7 +34,7 @@ function getConfig() {
   let config = persistentConfig.store
   overrideFromEnv(config, [])
   if (!config.keeper.keypair) {
-    config.keeper.keypair = encryptionUtils.generateKeyPair()
+    config.keeper.keypair = encryptionUtils.makeEllipticKeyPair()
     persistentConfig.set('keeper.keypair', config.keeper.keypair)
   }
   return config

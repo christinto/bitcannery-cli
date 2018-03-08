@@ -9,20 +9,14 @@ const packingUtils = require('./pack')
 const prefixUtils = require('./prefix')
 const UserError = require('./user-error').default
 
-const KEY_LENGTH_IN_BITS = 256
+const AES_KEY_LENGTH_BYTES = 32
+const AES_KEY_LENGTH_BITS = AES_KEY_LENGTH_BYTES * 8
+
 const SHAMIR_BITS = 14 // 2 ^ 14 = 16384 max keepers
 
+const HMAC_SECRET_FOR_PASSWORD_ENCRYPT = new Buffer('df890b7f532dfac8a02236de9b4953d8', 'hex')
+
 secrets.init(SHAMIR_BITS)
-
-function toUint8Array(buffer) {
-  const key = []
-
-  for (let i = 0; i < buffer.length; ++i) {
-    key.push(buffer.readUInt8(i))
-  }
-
-  return key
-}
 
 /**
  *  returns {
@@ -30,7 +24,7 @@ function toUint8Array(buffer) {
  *    publicKey - 0x hex string of secp256k1 public key
  *  }
  */
-function generateKeyPair() {
+function makeEllipticKeyPair() {
   const privateKey = crypto.randomBytes(32)
   const publicKey = eccrypto.getPublic(privateKey)
 
@@ -40,35 +34,102 @@ function generateKeyPair() {
   }
 }
 
-function aesEncrypt(textBuffer, keyBuffer, aesCounter) {
-  const text = toUint8Array(textBuffer)
-  const key = toUint8Array(keyBuffer)
-
-  const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(aesCounter)) // eslint-disable-line
-  const encryptedBytes = aesCtr.encrypt(text)
-
-  return aesjs.utils.hex.fromBytes(encryptedBytes)
+function makeKeyDerivationParams(saltLenBytes, baseIterCount) {
+  const entropy = crypto.randomBytes(saltLenBytes + 16)
+  const salt = entropy.slice(0, saltLenBytes)
+  const iterCount = baseIterCount + entropy.slice(saltLenBytes, saltLenBytes + 16).readUInt16BE()
+  return {salt, iterCount}
 }
 
-function aesDecrypt(encryptedHex, hexKey, aesCounter) {
-  const key = toUint8Array(Buffer.from(prefixUtils.trim0x(hexKey), 'hex'))
-  const encryptedBytes = aesjs.utils.hex.toBytes(prefixUtils.trim0x(encryptedHex))
-
-  const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(aesCounter)) // eslint-disable-line
-  const decryptedBytes = aesCtr.decrypt(encryptedBytes)
-
-  return aesjs.utils.hex.fromBytes(decryptedBytes)
+function deriveKey(password, saltBuf, iterCount) {
+  return crypto.pbkdf2Sync(password, saltBuf, iterCount, AES_KEY_LENGTH_BYTES, 'sha512')
 }
 
-async function encryptLegacy(legacyData, bobPublicKey, aesKey, aesCounter) {
-  const encryptedForBob = await ecEncrypt(legacyData, bobPublicKey)
-  const encryptedForBobBuffer = Buffer.from(
-    prefixUtils.trim0x(packingUtils.packElliptic(encryptedForBob)),
-    'hex',
-  )
-  return aesEncrypt(encryptedForBobBuffer, aesKey, aesCounter)
+/**
+ * Returns object of the following form: {
+ *   ciphertext: String, hex-encoded
+ *   salt: String, hex-encoded
+ *   dataHash: String, hex-encoded
+ *   iterCount: Number
+ *   aesCounter: Number
+ * }
+ */
+function passwordEncryptData(dataBuf, password, opts = {}) {
+  const {saltLenBytes = 32, baseIterCount = 300000} = opts
+  const {salt, iterCount} = makeKeyDerivationParams(saltLenBytes, baseIterCount)
+  const keyBuf = deriveKey(password, salt, iterCount)
+  const aesCounter = crypto.randomBytes(16).readUInt16BE()
+  const ciphertextBuf = aesEncrypt(dataBuf, keyBuf, aesCounter)
+  return {
+    ciphertext: ciphertextBuf.toString('hex'),
+    salt: salt.toString('hex'),
+    dataHash: sha256(dataBuf).toString('hex'),
+    iterCount,
+    aesCounter,
+  }
 }
 
+/**
+ * encryptedData - object of the following form: {
+ *   ciphertext: String, hex-encoded
+ *   salt: String, hex-encoded
+ *   dataHash: String, hex-encoded
+ *   iterCount: Number
+ *   aesCounter: Number
+ * }
+ *
+ * password - plaintext password, String
+ */
+function passwordDecryptData(encryptedData, password) {
+  const ciphertextBuf = new Buffer(encryptedData.ciphertext, 'hex')
+  const saltBuf = new Buffer(encryptedData.salt, 'hex')
+  const keyBuf = deriveKey(password, saltBuf, encryptedData.iterCount)
+  const dataBuf = aesDecrypt(ciphertextBuf, keyBuf, encryptedData.aesCounter)
+  if (sha256(dataBuf).toString('hex') !== encryptedData.dataHash) {
+    throw new UserError(`decryption failed`)
+  }
+  return dataBuf
+}
+
+/**
+ * dataBuf - data to encrypt: Buffer, Array of bytes or Uint8Array
+ * keyBuf - AES key: Buffer, Array of bytes or Uint8Array
+ * aesCounter - AES counter: Buffer or integer Number (up to 16 bytes)
+ *
+ * Returns Buffer instance containing encrypted data.
+ */
+function aesEncrypt(dataBuf, keyBuf, aesCounter) {
+  const counterInstance = new aesjs.Counter(aesCounter)
+  const aesCtrMode = new aesjs.ModeOfOperation.ctr(keyBuf, counterInstance) // eslint-disable-line
+  const ciphertextBytes = aesCtrMode.encrypt(dataBuf)
+  return new Buffer(ciphertextBytes)
+}
+
+/**
+ * ciphertextBuf - data to decrypt: Buffer, Array of bytes or Uint8Array
+ * keyBuf - AES key: Buffer, Array of bytes or Uint8Array
+ * aesCounter - AES counter: Buffer or integer Number (up to 16 bytes)
+ *
+ * Returns Buffer instance containing decrypted data.
+ */
+function aesDecrypt(ciphertextBuf, keyBuf, aesCounter) {
+  const counterInstance = new aesjs.Counter(aesCounter)
+  const aesCtrMode = new aesjs.ModeOfOperation.ctr(keyBuf, counterInstance) // eslint-disable-line
+  const ciphertextBytes = aesCtrMode.decrypt(ciphertextBuf)
+  return new Buffer(ciphertextBytes)
+}
+
+/**
+ * Returns a Buffer instance.
+ */
+function sha256(dataBuf) {
+  const hmac = crypto.createHmac('sha256', HMAC_SECRET_FOR_PASSWORD_ENCRYPT)
+  return hmac.update(dataBuf).digest()
+}
+
+/**
+ * Returns 0x-prefixed hex string.
+ */
 function sha3(data) {
   let dataToHash
   if (data instanceof Buffer) {
@@ -122,7 +183,7 @@ async function ecDecrypt(encrypted, privateKey) {
  */
 async function encryptData(legacyData, bobPublicKey, keeperPublicKeys, numKeepersToRecover) {
   const legacyDataHash = sha3(legacyData)
-  const aesKeyBuffer = crypto.randomBytes(KEY_LENGTH_IN_BITS / 8)
+  const aesKeyBuffer = crypto.randomBytes(AES_KEY_LENGTH_BITS / 8)
   const aesCounterBuffer = crypto.randomBytes(16)
 
   let encryptedLegacyData = await encryptLegacy(
@@ -177,6 +238,16 @@ async function encryptData(legacyData, bobPublicKey, keeperPublicKeys, numKeeper
     encryptedLegacyData,
     aesCounter: '0x' + aesCounterBuffer.toString('hex'),
   }
+}
+
+async function encryptLegacy(legacyData, bobPublicKey, aesKey, aesCounter) {
+  const encryptedForBob = await ecEncrypt(legacyData, bobPublicKey)
+  const encryptedForBobBuffer = Buffer.from(
+    prefixUtils.trim0x(packingUtils.packElliptic(encryptedForBob)),
+    'hex',
+  )
+  const encryptedBuf = aesEncrypt(encryptedForBobBuffer, aesKey, aesCounter)
+  return encryptedBuf.toString('hex')
 }
 
 /**
@@ -241,18 +312,15 @@ async function decryptData(
   aesCounter,
 ) {
   try {
-    const recoveredAESKey = secrets.combine(
-      keyParts.map(kp => shareFromHex(kp.substr(0, shareLength + 2))),
-    )
+    const keyHex = secrets.combine(keyParts.map(kp => shareFromHex(kp.substr(0, shareLength + 2))))
+    const keyBuf = Buffer.from(keyHex, 'hex')
 
-    const encryptedForBob = aesDecrypt(
-      prefixUtils.trim0x(encryptedLegacyData),
-      recoveredAESKey,
-      Buffer.from(prefixUtils.trim0x(aesCounter), 'hex'),
-    )
+    const dataBuf = Buffer.from(prefixUtils.trim0x(encryptedLegacyData), 'hex')
+    const ctrBuf = Buffer.from(prefixUtils.trim0x(aesCounter), 'hex')
 
-    let legacyData = await ecDecrypt(packingUtils.unpackElliptic(encryptedForBob), bobPrivateKey)
+    const encryptedForBob = aesDecrypt(dataBuf, keyBuf, ctrBuf).toString('hex')
 
+    const legacyData = await ecDecrypt(packingUtils.unpackElliptic(encryptedForBob), bobPrivateKey)
     const calculatedSha3 = sha3(legacyData)
 
     if (calculatedSha3 !== legacyDataHash) {
@@ -277,12 +345,15 @@ function checkLegacySha3(legacyData, legacyHash) {
 }
 
 module.exports = {
-  generateKeyPair,
+  makeEllipticKeyPair,
+  passwordEncryptData,
+  passwordDecryptData,
+  aesEncrypt,
+  aesDecrypt,
+  ecEncrypt,
   ecDecrypt,
   encryptData,
   decryptData,
   decryptKeeperShare,
-  aesEncrypt,
-  aesDecrypt,
   checkLegacySha3,
 }

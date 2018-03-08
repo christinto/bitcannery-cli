@@ -13,7 +13,7 @@ export const builder = yargs => yargs
 import readlineSync from 'readline-sync'
 
 import getContractInstance from '../utils/get-contract-instance'
-import {generateKeyPair, decryptData} from '../utils/encryption'
+import {decryptData} from '../utils/encryption'
 import {States, assembleEncryptedDataStruct} from '../utils/contract-api'
 import runCommand from '../utils/run-command'
 

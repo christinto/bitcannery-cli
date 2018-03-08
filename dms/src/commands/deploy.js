@@ -29,7 +29,7 @@ import {waitForKeepers, activateContract} from '../contract-utils/call-for-keepe
 
 import runCommand from '../utils/run-command'
 import getContractAPIs from '../utils/get-contract-apis'
-import {generateKeyPair} from '../utils/encryption'
+import {makeEllipticKeyPair} from '../utils/encryption'
 import {getGasPrice} from '../utils/tx'
 import print from '../utils/print'
 import getContractInstance from '../utils/get-contract-instance'
@@ -90,7 +90,7 @@ async function deploy(pathToFile) {
     DEFAULT_KEEPERS_NUMBER,
   )
 
-  const {privateKey, publicKey} = generateKeyPair()
+  const {privateKey, publicKey} = makeEllipticKeyPair()
 
   await activateContract(
     legacyContract,
@@ -153,7 +153,7 @@ async function continueDeploy(contractAddressOrID, pathToFile) {
     DEFAULT_KEEPERS_NUMBER,
   )
 
-  const {privateKey, publicKey} = generateKeyPair()
+  const {privateKey, publicKey} = makeEllipticKeyPair()
 
   print(`\nBob's private key: ${privateKey}\n`)
 
