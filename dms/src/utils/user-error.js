@@ -9,4 +9,11 @@ export default class UserError extends Error {
 
     Error.captureStackTrace(this, this.constructor)
   }
+
+  static from(err, prependMessage) {
+    return new UserError(
+      prependMessage + ': ' + (err instanceof UserError ? err.message : err.stack),
+      err,
+    )
+  }
 }
