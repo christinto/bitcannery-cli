@@ -1,5 +1,6 @@
 import linewrap from 'linewrap'
 import readlineSync from 'readline-sync'
+import inquirer from 'inquirer'
 import yn from 'yn'
 
 let _wrap
@@ -41,19 +42,37 @@ question.demandAnswer = function question_demandAnswer(message, opts) {
   return answer
 }
 
-question.password = function question_password(message) {
-  return question(message, {hideEchoBack: true})
+question.password = async function question_password(message, requireNonEmpty = false) {
+  const {result} = await inquirer.prompt([
+    {
+      name: 'result',
+      type: 'password',
+      message: message,
+      validate: requireNonEmpty
+        ? input => (input ? true : 'Password cannot be empty')
+        : input => true,
+      prefix: '',
+    },
+  ])
+  return result
 }
 
-question.verifiedPassword = function question_verifiedPassword(message) {
+question.verifiedPassword = async function question_verifiedPassword(
+  message,
+  requireNonEmpty = false,
+) {
   while (true) {
-    const password = question.password(message)
+    const password = await question.password(message, requireNonEmpty)
     if (password === '') {
       return password
     }
-    const checkPassword = question.password('Please enter password one more time to verify it:')
+    const checkPassword = await question.password(
+      'Please enter password one more time to verify it:',
+    )
     if (checkPassword === password) {
       return password
+    } else {
+      print(`Passwords don't match`)
     }
   }
 }

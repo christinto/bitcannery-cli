@@ -24,11 +24,14 @@ export async function handler(argv) {
   return runCommand(() => exportConfig(argv.pathToDirectory))
 }
 
-function exportConfig(pathToDirectory) {
+async function exportConfig(pathToDirectory) {
   const destination = makeDestinationPath(pathToDirectory)
 
   print(`\nYou need to think of a strong password, so nobody but you can restore the config later.`)
-  const password = question.verifiedPassword(`Please enter password (empty password to cancel):`)
+
+  const password = await question.verifiedPassword(
+    `Please enter password (empty password to cancel):`,
+  )
 
   if (password === '') {
     print(`The password is empty, cancelling.`)

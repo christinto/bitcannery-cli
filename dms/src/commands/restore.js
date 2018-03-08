@@ -26,7 +26,7 @@ async function importConfig(pathToFile) {
   assertFileExists(pathToFile)
 
   const encryptedConfig = await readEncryptedConfig(pathToFile)
-  const password = question.password(`\nPlease enter password for the config:`)
+  const password = await question.password(`\nPlease enter password for the config:`)
 
   if (password === '') {
     throw new UserError(`password cannot be empty`)
