@@ -1,4 +1,4 @@
-export const command = 'rotate-keepers <contractAddressOrID> <path-to-file>'
+export const command = 'rotate-keepers <contractAddressOrID>'
 
 export const desc = 'Start keeper rotation procedure'
 
@@ -6,10 +6,6 @@ export const desc = 'Start keeper rotation procedure'
 export const builder = yargs => yargs
   .positional('contractAddressOrID', {
     desc: 'Contract ID or address of contract',
-  })
-  .positional('pathToFile', {
-    desc: 'Path to file with legacy to encrypt',
-    normalize: true,
   })
 
 // Implementation
@@ -19,7 +15,7 @@ import inquirer from 'inquirer'
 import moment from 'moment'
 
 import {printWelcomeAndUnlockAccount} from '../contract-utils/common'
-import {readLegacyData, deployLegacyContract} from '../contract-utils/deploy'
+import {deployLegacyContract} from '../contract-utils/deploy'
 import {waitForKeepers, activateContract} from '../contract-utils/call-for-keepers'
 import {announceContinuationContract, updateAddress} from '../contract-utils/keepers-rotation'
 import {cancelContract} from '../contract-utils/cancel'
@@ -29,10 +25,11 @@ import {checkLegacySha3} from '../utils/encryption'
 import {getGasPrice, contractTx} from '../utils/tx'
 import {getBalance} from '../utils/web3'
 import {formatWei} from '../utils/format'
-import print from '../utils/print'
+import print, {question} from '../utils/print'
 import getContractInstance from '../utils/get-contract-instance'
 import {States, assembleEncryptedDataStruct} from '../utils/contract-api'
 
+import {readContractDataStore} from '../contract-data-store'
 import {DEFAULT_KEEPERS_NUMBER} from '../constants'
 
 export function handler(argv) {
@@ -43,12 +40,11 @@ export function handler(argv) {
 
 async function rotateKeepers(contractAddressOrID, pathToFile) {
   const address = await printWelcomeAndUnlockAccount()
-  const legacyData = await readLegacyData(pathToFile)
 
   print(
     `You are starting a process of keeper rotation. Please do not interrrupt ` +
       `the execution of this command, keeper rotation procedure is a very ` +
-      `sensitive process, so wait until the program will exit. If the program ` +
+      `sensitive process, so wait until the program exits. If the program ` +
       `execution is interrupted, please contact support.\n`,
   )
 
@@ -76,10 +72,33 @@ async function rotateKeepers(contractAddressOrID, pathToFile) {
     return
   }
 
+  const contractDataStorePassword = await question.password(
+    'Please enter contract data store password:',
+    true,
+  )
+
+  const contractDataStore = await readContractDataStore(contractDataStorePassword)
+
+  let contractData = contractDataStore[contractAddressOrID]
+  if (typeof contractData === 'string') {
+    contractData = contractDataStore[contractData]
+  }
+
+  if (contractData == null) {
+    print(
+      `It seems that you have no contract data stored in your configuration file ` +
+        `for this contract. Make sure you imported your configuration from different machine. ` +
+        `Use "dms restore" command to restore configuration from a backup.`,
+    )
+    // TODO: allow specifying data manually
+    return
+  }
+
+  const {legacyData, bobPublicKey} = contractData
   const data = assembleEncryptedDataStruct(encryptedDataRaw)
 
   if (!checkLegacySha3(legacyData, data.dataHash)) {
-    print(`Legacy data from file and contract's data don't match each other.`)
+    print(`Legacy data from config store doesn't match the one from the deployed contract.`)
     print(`Keeper rotation process failed.`)
   }
 
@@ -112,12 +131,10 @@ async function rotateKeepers(contractAddressOrID, pathToFile) {
     DEFAULT_KEEPERS_NUMBER,
   )
 
-  const publicKey = await askForBobPublic()
-
   await activateContract(
     legacyContract,
     selectedProposalIndices,
-    publicKey,
+    bobPublicKey,
     address,
     gasPrice,
     legacyData,
@@ -128,7 +145,7 @@ async function rotateKeepers(contractAddressOrID, pathToFile) {
   // TODO: add assertion that only top contract in active state
 
   print(
-    `You have successfully re-deployed and replace a set of keepers in the legacy contract. ` +
+    `You have successfully re-deployed and replaced a set of keepers in the legacy contract. ` +
       `Please use the following command to perform check-in: \n\n` +
       `  node index.js checkin ${contractAddressOrID}\n`,
   )
@@ -139,28 +156,6 @@ async function rotateKeepers(contractAddressOrID, pathToFile) {
         .add(checkInIntervalInSec, 's')
         .format('DD MMM YYYY'),
   )
-}
-
-async function askForBobPublic() {
-  const ASK_BOBS_PUBLIC_KEY_QUESTION_ID = 'ASK_BOBS_PUBLIC_KEY_QUESTION_ID'
-
-  return await inquirer
-    .prompt([
-      {
-        type: 'input',
-        name: ASK_BOBS_PUBLIC_KEY_QUESTION_ID,
-        message: `To perform keeper rotation please input Bob's public key`,
-        prefix: '',
-        validate: input => {
-          if (input.substring(0, 2) !== '0x' || input.length !== 132) {
-            return `Passed key shoud be 0x string 132 characters long`
-          }
-
-          return true
-        },
-      },
-    ])
-    .then(x => x[ASK_BOBS_PUBLIC_KEY_QUESTION_ID])
 }
 
 async function confirmStartKeeperRotation() {

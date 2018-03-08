@@ -14,6 +14,7 @@ export const persistentConfig = new Conf({
   defaults: {
     rpcConnection: 'http://localhost:8545',
     accountIndex: 0,
+    deployedContracts: null,
     keeper: {
       maxCheckInIntervalSec: SECONDS_IN_MONTH * 365,
       keepingFeePerContractMonth: '10000000000000000', // 0.01 ether

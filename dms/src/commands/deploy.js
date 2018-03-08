@@ -31,14 +31,30 @@ import runCommand from '../utils/run-command'
 import getContractAPIs from '../utils/get-contract-apis'
 import {makeEllipticKeyPair} from '../utils/encryption'
 import {getGasPrice} from '../utils/tx'
-import print from '../utils/print'
+import print, {question} from '../utils/print'
 import getContractInstance from '../utils/get-contract-instance'
+
+import {config, persistentConfig} from '../config'
+
+import {
+  isContractDataStoreInitialized,
+  initializeContractDataStore,
+  readContractDataStore,
+  replaceContractDataStore,
+  updateContractDataWithAddress,
+} from '../contract-data-store'
 
 import {
   MIN_CHECKIN_INTERVAL_IN_DAYS,
   MAX_CHECKIN_INTERVAL_IN_DAYS,
   DEFAULT_KEEPERS_NUMBER,
 } from '../constants'
+
+// prettier-ignore
+import {
+  MESSAGE_NEW_CONTRACT_STORE_PASSWORD,
+  MESSAGE_CONTRACT_STORE_PASSWORD_SET
+} from '../messages'
 
 export function handler(argv) {
   return runCommand(() => {
@@ -61,9 +77,16 @@ async function deploy(pathToFile) {
   )
 
   const legacyData = await readLegacyData(pathToFile)
+  const {privateKey, publicKey} = makeEllipticKeyPair()
   const {LegacyContract, registry} = await getContractAPIs()
 
   const contractId = await obtainNewContractName(registry)
+
+  const contractDataStorePassword = await persistContract({
+    id: contractId,
+    legacyData: legacyData,
+    bobPublicKey: publicKey,
+  })
 
   const checkInInterval = await askForCheckinInterval()
   const checkInIntervalInSec = Number(checkInInterval) * 24 * 60 * 60
@@ -75,6 +98,8 @@ async function deploy(pathToFile) {
     address,
     gasPrice,
   )
+
+  updateContractDataWithAddress(contractId, legacyContract.address, contractDataStorePassword)
 
   print(
     `Contract "${contractId}" has been deployed to the network. Contract address is ` +
@@ -90,8 +115,6 @@ async function deploy(pathToFile) {
     DEFAULT_KEEPERS_NUMBER + 1,
     DEFAULT_KEEPERS_NUMBER,
   )
-
-  const {privateKey, publicKey} = makeEllipticKeyPair()
 
   await activateContract(
     legacyContract,
@@ -194,7 +217,7 @@ async function obtainNewContractName(registry) {
   while (true) {
     let name = await obtainRandomName(registry)
 
-    console.error(`The automatically-generated random name for this contract is "${name}". `)
+    print(`The automatically-generated random name for this contract is "${name}". `)
 
     const useRandomName = await inquirer
       .prompt([
@@ -327,4 +350,31 @@ function isValidName(str) {
 async function isUnique(name, registry) {
   const address = await registry.getContractAddress(name)
   return new BigNumber(address).isZero()
+}
+
+async function persistContract({id, legacyData, bobPublicKey}) {
+  const password = await queryContractDataStorePassword()
+  const store = await getContractDataStore(password)
+  store[id] = {legacyData, bobPublicKey}
+  await replaceContractDataStore(store, password)
+  return password
+}
+
+async function getContractDataStore(password) {
+  if (isContractDataStoreInitialized()) {
+    return await readContractDataStore(password)
+  } else {
+    await initializeContractDataStore(password)
+    print('\n' + MESSAGE_CONTRACT_STORE_PASSWORD_SET)
+    return {}
+  }
+}
+
+function queryContractDataStorePassword() {
+  if (isContractDataStoreInitialized()) {
+    return question.password(`Please enter contract data store password:`, true)
+  } else {
+    print('\n' + MESSAGE_NEW_CONTRACT_STORE_PASSWORD)
+    return question.verifiedPassword(`Please enter contract data store password:`, true)
+  }
 }
