@@ -1,0 +1,13 @@
+[Unit]
+Description=Keeper swarm
+Wants=keeper@1.service
+Wants=keeper@2.service
+Wants=keeper@3.service
+Wants=keeper@4.service
+Wants=keeper@5.service
+Wants=keeper@6.service
+Wants=keeper@7.service
+Wants=keeper@8.service
+
+[Install]
+WantedBy=multi-user.target

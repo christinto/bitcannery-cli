@@ -1,0 +1,26 @@
+var accounts = [
+  "0xad1c249b73cebb53cedfb13a921ff1016662ceba",
+  "0xf05af978da1e52979f18562ea8602521c24662c4",
+  "0xf1190b274b02ecce76fc5af08c2dfa2dff123e72",
+  "0x8b402e64851c78c822842c5b0c459d69f4d8a1de",
+  "0xf2240114d7db7316bf0d35eff77707ba56eabe48",
+  "0xc664831c48a811d80dd4c2fab6ca49e71234af74",
+  "0xfec170243e2c7af0130e95076a17ea8b931fdaca",
+  "0x968a5750759bb902565ba6d9cb46e5e587074a8c"
+];
+
+var privateKeys = [
+  "6ecaeb389cb05c5c159cf516d2cd86ac694782cedcdf1180c17221c6dd58db32",
+  "77cff394e557e27e4d1d3466570ffdf6e9f9d569e77f1616af66d155ce324480",
+  "bdd155e055ff13ff7b9d5c6351f6fab05cd38ba6fb047b18617adda34316a35e",
+  "1c8c189248156b603dc64f8dac9b9c95aa51bf3c047418ade4b17d1542193d98",
+  "105cf2d6baa51d7484e5b262ea4b9597b3dd5980b3a28ea6d59334136916cd3c",
+  "4f5cf407fdecd43a390071bf5f597332d4a542d42e42536aff56657b22b51138",
+  "83551222761ba6c51767bd7b5ee2337e10cb9c352b95d97efa13bc88a1a56ec2",
+  "f3ea2aebbe3755a9f93f7e58c8ad8f1a051a1e89566688beabcfd2aa135a4ecb"
+];
+
+for (var i = 0; i < privateKeys.length; ++i) {
+  console.log('Imported account ' + i);
+  personal.importRawKey(privateKeys[i], '' + i);
+}

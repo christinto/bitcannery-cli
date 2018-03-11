@@ -1,0 +1,15 @@
+[Unit]
+Description=Geth Rinkeby
+After=syslog.target network.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=3
+ExecStart=/root/run-gethd.sh
+KillMode=process
+KillSignal=SIGINT
+TimeoutStopSec=90
+
+[Install]
+WantedBy=multi-user.target

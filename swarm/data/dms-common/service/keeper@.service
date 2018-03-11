@@ -1,0 +1,13 @@
+[Unit]
+Description=Keeper for %I account
+PartOf=keepers.target
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+Environment=CONFIG_NAME=keeper-%I
+Restart=always
+RestartSec=5s
+ExecStartPre=/bin/sleep 10
+ExecStart=/usr/bin/node /root/crypto-legacy/dms/index.js keeper
