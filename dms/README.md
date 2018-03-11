@@ -181,7 +181,7 @@ $ node index.js decrypt sleepy_shirley_29
 1. Run `geth` in `--rinkeby` mode and wait approximately 15-20 mins for whole sync.
 
 ```
-geth --datadir="~/.rinkeby " --rinkeby --rpc --rpcapi='db,eth,net,web3,personal' --rpcport '9545' --rpcaddr '127.0.0.1' --rpccorsdomain '*' console
+geth --datadir="~/.rinkeby" --rinkeby --rpc --rpcapi='db,eth,net,web3,personal' --rpcport '9545' --rpcaddr '127.0.0.1' --rpccorsdomain '*' console
 ```
 
 Note: blockchain data for rinkeby network will be stored at `~/.rinkeby`
