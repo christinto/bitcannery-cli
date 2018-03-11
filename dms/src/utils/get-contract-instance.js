@@ -3,6 +3,7 @@ import BigNumber from 'bignumber.js'
 
 import getContractAPIs from './get-contract-apis'
 import UserError from './user-error'
+import {addressIsZero} from './web3'
 
 export default async function getContractInstance(addressOrID) {
   const {LegacyContract, registry} = await getContractAPIs()
@@ -12,7 +13,7 @@ export default async function getContractInstance(addressOrID) {
     address = addressOrID
   } else {
     address = await registry.getContractAddress(addressOrID)
-    if (new BigNumber(address).isZero()) {
+    if (addressIsZero(address)) {
       throw new UserError(`there is no contract with id "${addressOrID}"`)
     }
   }

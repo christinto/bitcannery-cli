@@ -17,7 +17,7 @@ import {
 } from '../../utils/contract-api'
 
 import getContractAPIs from '../../utils/get-contract-apis'
-import {getLatestBlock} from '../../utils/web3'
+import {getLatestBlock, addressIsZero} from '../../utils/web3'
 import {formatWei} from '../../utils/format'
 import unlockAccount, {isAccountLocked} from '../../utils/unlock-account'
 import {contractTx} from '../../utils/tx'
@@ -392,7 +392,7 @@ async function getContinuationContract(contract, api) {
 }
 
 function validAddressOrNull(address) {
-  return new BigNumber(address).isZero() ? null : address
+  return addressIsZero(address) ? null : address
 }
 
 //

@@ -33,6 +33,7 @@ import {makeEllipticKeyPair} from '../utils/encryption'
 import {getGasPrice} from '../utils/tx'
 import print, {question} from '../utils/print'
 import getContractInstance from '../utils/get-contract-instance'
+import {addressIsZero} from '../utils/web3'
 
 import {config, persistentConfig} from '../config'
 
@@ -349,7 +350,7 @@ function isValidName(str) {
 
 async function isUnique(name, registry) {
   const address = await registry.getContractAddress(name)
-  return new BigNumber(address).isZero()
+  return addressIsZero(address)
 }
 
 async function persistContract({id, legacyData, bobPublicKey}) {

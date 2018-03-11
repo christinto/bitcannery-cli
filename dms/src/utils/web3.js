@@ -1,5 +1,6 @@
 import getWeb3 from './get-web3'
 import {promisifyCall} from './promisify'
+import BigNumber from 'bignumber.js'
 
 const web3 = getWeb3()
 
@@ -29,6 +30,16 @@ export function sign(address, data) {
 
 export function getNetwork() {
   return promisifyCall(web3.version.getNetwork, web3.version)
+}
+
+export function addressIsZero(address) {
+  // sometimes geth returns 0x instead of 0x0 which leads to exception
+  // inside the BigNumber lib.
+  if (address == '0x') {
+    return true
+  } else {
+    return new BigNumber(address).isZero()
+  }
 }
 
 export async function getNetworkName() {

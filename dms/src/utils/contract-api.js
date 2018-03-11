@@ -3,6 +3,7 @@
 import BigNumber from 'bignumber.js'
 import UserError from './user-error'
 import getContractAPIs from './get-contract-apis'
+import {addressIsZero} from './web3'
 
 export const States = {
   CallForKeepers: 0,
@@ -88,12 +89,12 @@ export async function fetchContractChain(contractId) {
 
   address = await registry.getContractInitialAddress(contractId)
 
-  if (new BigNumber(address).isZero()) {
+  if (addressIsZero(address)) {
     throw new UserError(`there is no contract with id "${contractId}"`)
   }
 
   const chain = []
-  while (!new BigNumber(address).isZero()) {
+  while (!addressIsZero(address)) {
     contract = await LegacyContract.at(address).then(x => x)
     chain.push(contract)
     address = await contract.getContinuationContractAddress()
