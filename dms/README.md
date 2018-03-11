@@ -111,6 +111,7 @@ $ node index.js keeper
 Open a new terminal and run Alice's client to deploy a contract:
 
 ```text
+$ node index.js set-client-options --rpc-connection 'http://localhost:9545'
 $ node index.js deploy sample_legacy.txt
 Welcome to KeeperNet v2!
 
