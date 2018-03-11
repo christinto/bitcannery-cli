@@ -7,11 +7,11 @@ export const builder = yargs => yargs
 
 // Implementation
 
-import {getAccounts} from '../utils/web3'
 import runCommand from '../utils/run-command'
 import getContractAPIs from '../utils/get-contract-apis'
 import {fetchOwnerContracts} from '../utils/contract-api'
 import print from '../utils/print'
+import {printWelcomeAndUnlockAccount} from '../contract-utils/common'
 
 export function handler(argv) {
   return runCommand(() => getList())
@@ -20,16 +20,20 @@ export function handler(argv) {
 async function getList() {
   // TODO: ensure json rpc is running
 
-  const accounts = await getAccounts()
+  const address = await printWelcomeAndUnlockAccount()
   const {registry} = await getContractAPIs()
-  const contracts = await fetchOwnerContracts(registry, accounts[0])
+  const contracts = await fetchOwnerContracts(registry, address)
 
   if (contracts.length === 0) {
     print(`\nYou have no contracts yet.\n`)
     return
   }
 
+  print('Contract list:\n')
+
   for (let i = 0; i < contracts.length; ++i) {
-    console.error(contracts[i])
+    print(contracts[i])
   }
+
+  print('')
 }
