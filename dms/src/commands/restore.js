@@ -33,7 +33,7 @@ async function importConfig(pathToFile) {
   }
 
   const decryptedConfigBuf = passwordDecryptData(encryptedConfig, password)
-  const decryptConfig = JSON.parse(decryptedConfigBuf.toString('utf8'))
+  const decryptedConfig = JSON.parse(decryptedConfigBuf.toString('utf8'))
 
   persistentConfig.set(decryptedConfig)
 
