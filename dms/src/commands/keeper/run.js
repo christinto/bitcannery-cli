@@ -54,6 +54,7 @@ const addressesWithProposalsSentSinceStart = {}
 const txQueue = new AsyncSerialQueue()
 
 async function runKeeper() {
+  console.error(`Node.js version:`, process.version)
   console.error(`Keeper config:`, sanitizeKeeperConfig(config.keeper))
 
   const [{LegacyContract, registry}, account] = [await getContractAPIs(), await unlockAccount(true)]
