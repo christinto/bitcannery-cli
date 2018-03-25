@@ -64,7 +64,7 @@ resource "digitalocean_droplet" "dms" {
       "sudo add-apt-repository -y ppa:ethereum/ethereum",
       "sleep 10 | echo 'Sleeping for a 10 seconds'",
       "sudo apt-get update",
-      "sudo apt-get install -y nodejs ethereum unzip"
+      "sudo apt-get install -y nodejs ethereum unzip build-essential"
     ]
 
     connection {
