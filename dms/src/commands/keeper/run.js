@@ -97,6 +97,7 @@ async function watchForNewContracts(api) {
 
   api.registry.allEvents({fromBlock: latestBlock.number}, (err, log) => {
     if (err) {
+      // TODO: re-initialize filter?
       console.error(`WARN error while watching registry events: ${err.message}`)
     } else {
       handleRegistryEvent(log, api).catch(err => {
