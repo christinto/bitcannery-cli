@@ -1,8 +1,7 @@
 import truffleContract from 'truffle-contract'
 import getWeb3 from './get-web3'
 
-import LegacyContractABI from '../../../truffle/build/contracts/CryptoLegacy.json'
-import RegistryContractABI from '../../../truffle/build/contracts/Registry.json'
+import {LegacyContractABI, RegistryContractABI} from '../contract-abis'
 
 let classesByName = {}
 let registry

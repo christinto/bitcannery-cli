@@ -1,0 +1,20 @@
+#!/usr/bin/env node
+process.chdir('build')
+
+const {compile} = require('nexe')
+
+const compileOpts = {
+  input: `./entrypoint.js`,
+  output: `./dms`,
+  target: `darwin-${process.versions.node}`,
+  debugBundle: `./bundle.js`,
+  resources: [
+    '../../../truffle/build/contracts/*.json'
+  ],
+}
+
+console.log(`Using compilation options:`, compileOpts)
+
+compile(compileOpts)
+  .then(() => console.log('Done!'))
+  .catch(err => console.log(err.stack))

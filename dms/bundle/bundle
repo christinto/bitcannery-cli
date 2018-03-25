@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -e
+
+DMS_DIR=$(cd .. && pwd)
+BIN_DIR=$DMS_DIR/node_modules/.bin
+
+# set -x
+
+rm -rf build
+mkdir -p build
+cp entrypoint.js build/
+
+#
+echo -e '\nTranspiling sources...\n'
+#
+
+"$BIN_DIR/babel" --source-maps --out-dir build/src "$DMS_DIR/src"
+"$BIN_DIR/babel" --source-maps --out-file build/src/contract-abis.js contract-abis.js
+
+#
+echo -e '\nInstalling dependencies...\n'
+#
+
+echo -e "Node.js version: $(node --version)\n"
+
+cp "$DMS_DIR/package.json" build/
+cp "$DMS_DIR/package-lock.json" build/
+
+(cd build && npm install --production)
+
+#
+echo -e '\nFixing require.cache...\n'
+#
+
+# require.cache is undefined in nexe environment. Some libraries,
+# like sindresorhus/conf, expect it to be an object. For example,
+# sindresorhus/conf performs `delete require.cache[__filename]`,
+# which crashes the app. We need to make sure require.cache is an
+# object in all cases. We cannot just set it to an object in JS
+# as each module gets its own instance of `require` function.
+#
+find build -type f -iname '*.js' | \
+  xargs perl -e 's/require[.]cache[[]/(require.cache || (require.cache = {}))[/' -pi
+
+#
+echo -e '\nPackaging...\n'
+#
+
+./make-binary
