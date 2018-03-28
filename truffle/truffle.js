@@ -1,9 +1,11 @@
+require('babel-register')
+
 const GAS_LIMIT = 4712388
 const GWEI = 1000000000
 
 const RINKEBY_GAS_LIMIT = 6650000
-const RINKEBY_GAS_PRICE = 20000000000
-const RINKEBY_ADDR_TO_DEPLOY = "0x6da26a02b4364dcff7cfd58f8a8b9c6ce62a0c61"
+const RINKEBY_GAS_PRICE = 2 * GWEI
+const RINKEBY_ADDR_TO_DEPLOY = '0x6da26a02b4364dcff7cfd58f8a8b9c6ce62a0c61'
 
 module.exports = {
   networks: {
@@ -30,4 +32,4 @@ module.exports = {
       gasPrice: 1 * GWEI,
     },
   }
-};
+}

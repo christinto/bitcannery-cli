@@ -179,6 +179,7 @@ async function ecDecrypt(encrypted, privateKey) {
  *    shareLength - length of share string in hex characters
  *    legacyDataHash - 0x sha3 solidity hash of legacy data
  *    encryptedLegacyData - 0x hex string of encrypted legacy data
+ *    aesCounter - 0x hex string of AES counter value
  *  }
  */
 async function encryptData(legacyData, bobPublicKey, keeperPublicKeys, numKeepersToRecover) {
