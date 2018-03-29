@@ -1,6 +1,7 @@
 const CryptoLegacy = artifacts.require('./CryptoLegacyDebug.sol')
 
 import {
+  getAddresses,
   assert,
   assertTxSucceeds,
   assertTxFails,
@@ -22,22 +23,11 @@ import {States,
 //
 contract('CryptoLegacy', (accounts) => {
 
-  function getAddresses() {
-    const [_, Alice, Bob, keeper_1, keeper_2, keeper_3] = accounts
-    return {Alice, Bob, keeper_1, keeper_2, keeper_3}
-  }
-
-  const addr = getAddresses()
-
+  const addr = getAddresses(accounts)
   const legacyText = 'So long and thanks for all the fish'
   const checkInIntervalSec = 2 * 60 * 60 // 2 hours
+  const keepingFees = [100, 150, 200]
   const selectedProposalIndices = [0, 2]
-
-  const keepingFees = {
-    keeper_1: 100,
-    keeper_2: 150,
-    keeper_3: 200,
-  }
 
   let contract
   let encryptionResult
@@ -58,17 +48,17 @@ contract('CryptoLegacy', (accounts) => {
 
   it(`allows first Keeper to submit a proposal`, async () => {
     await assertTxSucceeds(contract.submitKeeperProposal(
-      keeperPublicKeys[0], keepingFees.keeper_1, {from: addr.keeper_1}))
+      keeperPublicKeys[0], keepingFees[0], {from: addr.keeper[0]}))
   })
 
   it(`allows second Keeper to submit a proposal`, async () => {
     await assertTxSucceeds(contract.submitKeeperProposal(
-      keeperPublicKeys[1], keepingFees.keeper_2, {from: addr.keeper_2}))
+      keeperPublicKeys[1], keepingFees[1], {from: addr.keeper[1]}))
   })
 
   it(`allows third Keeper to submit a proposal`, async () => {
     await assertTxSucceeds(contract.submitKeeperProposal(
-      keeperPublicKeys[2], keepingFees.keeper_3, {from: addr.keeper_3}))
+      keeperPublicKeys[2], keepingFees[2], {from: addr.keeper[2]}))
   })
 
   it(`owner couldn't check-in before Keepers are accepted`, async () => {
@@ -86,7 +76,7 @@ contract('CryptoLegacy', (accounts) => {
     await assertTxSucceeds(contract.acceptKeepers(
       selectedProposalIndices, // selected proposal indices
       encryptionResult.keyPartHashes, // hashes of key parts
-      encryptionResult.encryptedKeyParts, // array of encrypted key parts
+      encryptionResult.encryptedKeyParts, // packed array of encrypted key parts
       {from: addr.Alice},
     ))
 
@@ -105,7 +95,7 @@ contract('CryptoLegacy', (accounts) => {
       encryptionResult.aesCounter,
       {
         from: addr.Alice,
-        value: keepingFees.keeper_1 + keepingFees.keeper_3
+        value: keepingFees[0] + keepingFees[2]
       }
     ))
 
@@ -117,55 +107,55 @@ contract('CryptoLegacy', (accounts) => {
       assert.equal(state.toNumber(), States.Active, `state after activation`)
     }
 
-    const firstKeeper = assembleKeeperStruct(await contract.activeKeepers(addr.keeper_1))
+    const firstKeeper = assembleKeeperStruct(await contract.activeKeepers(addr.keeper[0]))
     assert.equal(firstKeeper.publicKey, keeperPublicKeys[0])
     assert.equal(firstKeeper.keyPartHash, hash_1)
 
-    const secondKeeper = assembleKeeperStruct(await contract.activeKeepers(addr.keeper_3))
+    const secondKeeper = assembleKeeperStruct(await contract.activeKeepers(addr.keeper[2]))
     assert.equal(secondKeeper.publicKey, keeperPublicKeys[2])
     assert.equal(secondKeeper.keyPartHash, hash_2)
   })
 
   it(`Keeper couldn't check-in for contract owner`, async () => {
-    await assertTxFails(contract.ownerCheckIn({from: addr.keeper_1}))
+    await assertTxFails(contract.ownerCheckIn({from: addr.keeper[0]}))
   })
 
   it(`owner could check-in in Active state`, async () => {
-    await assertTxFails(contract.ownerCheckIn({from: addr.keeper_1}))
+    await assertTxFails(contract.ownerCheckIn({from: addr.keeper[0]}))
   })
 
   it(`non-accepted Keeper couldn't check in`, async () => {
-    await assertTxFails(contract.keeperCheckIn({from: addr.keeper_2}))
+    await assertTxFails(contract.keeperCheckIn({from: addr.keeper[1]}))
   })
 
   it(`accepted Keeper could check in`, async () => {
-    await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper_1}))
+    await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper[0]}))
   })
 
   it(`keeper could send key only after Termination event`, async () => {
-    await assertTxFails(contract.supplyKey(''), {from: addr.keeper_1})
+    await assertTxFails(contract.supplyKey(''), {from: addr.keeper[0]})
   })
 
   it(`Keeper check-in transfers contract to CallForKeys state if owner `+
      `failed to check in in time`, async () => {
 
     await assertTxSucceeds(contract.increaseTimeBy(checkInIntervalSec + 1))
-    await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper_1}))
+    await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper[0]}))
 
     const state = await contract.state()
     assert.equal(state.toNumber(), States.CallForKeys)
   })
 
   it(`non-accepted keeper couldn't send key`, async () => {
-    await assertTxFails(contract.supplyKey('arara', {from: addr.keeper_2}))
+    await assertTxFails(contract.supplyKey('arara', {from: addr.keeper[1]}))
   })
 
   it(`accepted keeper couldn't send invalid key part`, async () => {
-    await assertTxFails(contract.supplyKey('ururu', {from: addr.keeper_1}))
+    await assertTxFails(contract.supplyKey('ururu', {from: addr.keeper[0]}))
   })
 
   it(`accepted keeper could send valid key part and receive their keeping fee`, async () => {
-    const keeperToGetReward = addr.keeper_1
+    const keeperToGetReward = addr.keeper[0]
 
     const keeperAcctBalanceBefore = await getAccountBalance(keeperToGetReward)
     const [keeperBalanceBefore] = await getActiveKeepersBalances(contract, [keeperToGetReward])
@@ -183,7 +173,7 @@ contract('CryptoLegacy', (accounts) => {
 
     const expectedKeeperAcctBalanceAfter = keeperAcctBalanceBefore
       .plus(keeperBalanceBefore)
-      .plus(keepingFees.keeper_1)
+      .plus(keepingFees[0])
       .minus(txPriceWei)
 
     const keeperAcctBalanceAfter = await getAccountBalance(keeperToGetReward)
@@ -197,7 +187,7 @@ contract('CryptoLegacy', (accounts) => {
   })
 
   it(`second accepted keeper could send valid key part and receive their keeping fee`, async () => {
-    const keeperToGetReward = addr.keeper_3
+    const keeperToGetReward = addr.keeper[2]
 
     const keeperAcctBalanceBefore = await getAccountBalance(keeperToGetReward)
     const [keeperBalanceBefore] = await getActiveKeepersBalances(contract, [keeperToGetReward])
@@ -215,7 +205,7 @@ contract('CryptoLegacy', (accounts) => {
 
     const expectedKeeperAcctBalanceAfter = keeperAcctBalanceBefore
       .plus(keeperBalanceBefore)
-      .plus(keepingFees.keeper_3)
+      .plus(keepingFees[2])
       .minus(txPriceWei)
 
     const keeperAcctBalanceAfter = await getAccountBalance(keeperToGetReward)
@@ -240,22 +230,22 @@ contract('CryptoLegacy', (accounts) => {
       await decryptKeyPart(encryptedKeyPartsChunks, encryptionResult.keyPartHashes, 0, 0),
       await decryptKeyPart(encryptedKeyPartsChunks, encryptionResult.keyPartHashes, 1, 2),
     ]
-    await assertTxFails(contract.supplyKey(decryptedKeyPart_1, {from: addr.keeper_1}))
-    await assertTxFails(contract.supplyKey(decryptedKeyPart_3, {from: addr.keeper_3}))
+    await assertTxFails(contract.supplyKey(decryptedKeyPart_1, {from: addr.keeper[0]}))
+    await assertTxFails(contract.supplyKey(decryptedKeyPart_3, {from: addr.keeper[2]}))
   })
 
   it(`checking in after supplying key part has no effect`, async () => {
     const [preCheckInBalanceContract, ...preCheckInKeeperWalletBalances] =
-      await getAccountBalances(contract.address, addr.keeper_1, addr.keeper_3)
+      await getAccountBalances(contract.address, addr.keeper[0], addr.keeper[2])
 
     const txPrices = [
-      await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper_1})),
-      await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper_3})),
+      await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper[0]})),
+      await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper[2]})),
     ]
     .map(r => r.txPriceWei)
 
     const [postCheckInBalanceContract, ...postCheckInKeeperWalletBalances] =
-      await getAccountBalances(contract.address, addr.keeper_1, addr.keeper_3)
+      await getAccountBalances(contract.address, addr.keeper[0], addr.keeper[2])
 
     assert.bignumEqual(
       postCheckInBalanceContract,
