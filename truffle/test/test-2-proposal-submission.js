@@ -1,20 +1,21 @@
-const assert = require('chai').assert
+import {States} from '../../dms/src/utils/contract-api'
+
+import {web3,
+  getAddresses,
+  assert,
+  assertTxSucceeds,
+  assertTxFails,
+  acceptKeepersAndActivate} from './helpers'
+
+import {keeperPublicKeys} from './data'
+
+
 const CryptoLegacy = artifacts.require('./CryptoLegacyDebug.sol')
-
-const {web3, assertTxSucceeds, assertTxFails} = require('./helpers')
-const {keeperPublicKeys} = require('./data')
-
-const {States} = require('../utils/contract-api')
 
 
 contract('CryptoLegacy, proposal submission:', (accounts) => {
 
-  function getAddresses() {
-    const [_, Alice, Bob, keeper_1, keeper_2, keeper_3, keeper_4] = accounts
-    return {Alice, Bob, keeper_1, keeper_2, keeper_3, keeper_4}
-  }
-
-  const addr = getAddresses()
+  const addr = getAddresses(accounts)
   const checkInIntervalSec = 2 * 60 * 60 // 2 hours
 
   let contract
@@ -28,7 +29,7 @@ contract('CryptoLegacy, proposal submission:', (accounts) => {
     await assertTxSucceeds(contract.submitKeeperProposal(
       keeperPublicKeys[0],
       keepingFee,
-      {from: addr.keeper_1}))
+      {from: addr.keeper[0]}))
     const numProposals = await contract.getNumProposals()
     assert.equal(numProposals.toNumber(), 1)
   })
@@ -38,7 +39,7 @@ contract('CryptoLegacy, proposal submission:', (accounts) => {
     await assertTxSucceeds(contract.submitKeeperProposal(
       keeperPublicKeys[1],
       keepingFee,
-      {from: addr.keeper_2}))
+      {from: addr.keeper[1]}))
     const numProposals = await contract.getNumProposals()
     assert.equal(numProposals.toNumber(), 2)
   })
@@ -48,7 +49,7 @@ contract('CryptoLegacy, proposal submission:', (accounts) => {
     await assertTxSucceeds(contract.submitKeeperProposal(
       keeperPublicKeys[2],
       keepingFee,
-      {from: addr.keeper_3}))
+      {from: addr.keeper[2]}))
     const numProposals = await contract.getNumProposals()
     assert.equal(numProposals.toNumber(), 3)
   })
@@ -57,7 +58,7 @@ contract('CryptoLegacy, proposal submission:', (accounts) => {
     await assertTxFails(contract.submitKeeperProposal(
       keeperPublicKeys[1],
       100, // keeping fee
-      {from: addr.keeper_4})
+      {from: addr.keeper[3]})
     )
   })
 
@@ -65,11 +66,11 @@ contract('CryptoLegacy, proposal submission:', (accounts) => {
     await assertTxFails(contract.submitKeeperProposal(
       keeperPublicKeys[0],
       100, // keeping fee
-      {from: addr.keeper_1}), 'same key')
+      {from: addr.keeper[0]}), 'same key')
     await assertTxFails(contract.submitKeeperProposal(
       '0x123456',
       100, // keeping fee
-      {from: addr.keeper_1}), 'different key')
+      {from: addr.keeper[0]}), 'different key')
   })
 
   it(`doesn't allow owner to submit a proposal`, async () => {
@@ -94,25 +95,21 @@ contract('CryptoLegacy, proposal submission:', (accounts) => {
     await assertTxFails(contract.submitKeeperProposal(
       longPubKey,
       150, // keeping fee
-      {from: addr.keeper_4})
+      {from: addr.keeper[3]})
     )
   })
 
   it(`doesn't allow submitting proposals after contract has been activated`, async () => {
 
-    const selectedProposalIndices = [1, 2]
-    const selectedKeyParts = ['0x1234567890', '0xfffeeefffe']
-    const selectedKeyPartHashes = selectedKeyParts.map(part => web3.utils.soliditySha3(part))
-
-    await assertTxSucceeds(contract.acceptKeepers(
-      selectedProposalIndices, // selectedProposalIndices
-      selectedKeyPartHashes, // keyPartHashes
-      '0xaaabbbaaabbbaaabbb', // encryptedKeyParts
-      '0xaaabbbaaabbbaaabbb', // _encryptedData
-      '0x112311231123112311', // dataHash
-      42, // aesCounter
-      {from: addr.Alice, value: 200 + 50}
-    ))
+    await acceptKeepersAndActivate(contract, {
+      selectedProposalIndices: [1, 2],
+      keyPartHashes: ['0x1234567890', '0xfffeeefffe'].map(part => web3.utils.soliditySha3(part)),
+      encryptedKeyParts: '0xaaabbbaaabbbaaabbb',
+      shareLength: 42,
+      encryptedLegacyData: '0xaaabbbaaabbbaaabbb',
+      legacyDataHash: '0x112311231123112311',
+      aesCounter: 42,
+    }, {from: addr.Alice, value: 200 + 50})
 
     const state = await contract.state()
     assert.equal(state.toNumber(), States.Active)
@@ -120,13 +117,13 @@ contract('CryptoLegacy, proposal submission:', (accounts) => {
     await assertTxFails(contract.submitKeeperProposal(
       '0x42424242',
       100,
-      {from: addr.keeper_4})
+      {from: addr.keeper[3]})
     )
   })
 
   it(`doesn't allow submitting proposals when contract is in CallForKeys state`, async () => {
     await assertTxSucceeds(contract.increaseTimeBy(checkInIntervalSec + 1))
-    await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper_3}))
+    await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper[2]}))
 
     const state = await contract.state()
     assert.equal(state.toNumber(), States.CallForKeys)
@@ -134,7 +131,7 @@ contract('CryptoLegacy, proposal submission:', (accounts) => {
     await assertTxFails(contract.submitKeeperProposal(
       '0x42424243',
       100,
-      {from: addr.keeper_4})
+      {from: addr.keeper[3]})
     )
   })
 

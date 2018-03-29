@@ -137,6 +137,40 @@ assert.bignumEqual = function assertBignumEqual(bal1, bal2, message) {
 // contract-specific helpers
 
 
+export function getAddresses(accounts) {
+  const [_, Alice, Bob, ...keeper] = accounts
+  return {Alice, Bob, keeper}
+}
+
+
+export async function acceptKeepersAndActivate(contract, {
+  selectedProposalIndices,
+  keyPartHashes,
+  encryptedKeyParts,
+  shareLength,
+  encryptedLegacyData,
+  legacyDataHash,
+  aesCounter,
+}, {
+  from,
+  value,
+}) {
+  await assertTxSucceeds(contract.acceptKeepers(
+    selectedProposalIndices,
+    keyPartHashes,
+    encryptedKeyParts,
+    {from},
+  ))
+  await assertTxSucceeds(contract.activate(
+    shareLength,
+    encryptedLegacyData,
+    legacyDataHash,
+    aesCounter,
+    {from, value},
+  ))
+}
+
+
 export async function getActiveKeepersBalances(contract, keeperAddrs) {
   const keepers = await getActiveKeepers(contract, keeperAddrs)
   return keepers.map(keeper => keeper.balance)
