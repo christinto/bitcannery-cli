@@ -216,6 +216,8 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
       uint proposalIndex = selectedProposalIndices[i];
       KeeperProposal storage proposal = keeperProposals[proposalIndex];
 
+      require(activeKeepers[proposal.keeperAddress].lastCheckInAt == 0);
+
       activeKeepers[proposal.keeperAddress] = ActiveKeeper({
         publicKey: proposal.publicKey,
         keyPartHash: keyPartHashes[i],
