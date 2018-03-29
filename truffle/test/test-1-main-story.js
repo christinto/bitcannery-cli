@@ -71,8 +71,6 @@ contract('CryptoLegacy', (accounts) => {
 
   it(`allows owner to accept selected Keeper proposals`, async () => {
 
-    const [hash_1, hash_2] = encryptionResult.keyPartHashes
-
     await assertTxSucceeds(contract.acceptKeepers(
       selectedProposalIndices, // selected proposal indices
       encryptionResult.keyPartHashes, // hashes of key parts
@@ -80,13 +78,24 @@ contract('CryptoLegacy', (accounts) => {
       {from: addr.Alice},
     ))
 
-    {
-      const numKeepers = await contract.getNumKeepers()
-      assert.equal(numKeepers.toNumber(), 2, `num keepers before activation`)
+    const numKeepers = await contract.getNumKeepers()
+    assert.equal(numKeepers.toNumber(), 2, `num keepers`)
 
-      const state = await contract.state()
-      assert.equal(state.toNumber(), States.CallForKeepers, `state before activation`)
-    }
+    const state = await contract.state()
+    assert.equal(state.toNumber(), States.CallForKeepers, `state`)
+
+    const [hash_1, hash_2] = encryptionResult.keyPartHashes
+
+    const firstKeeper = assembleKeeperStruct(await contract.activeKeepers(addr.keeper[0]))
+    assert.equal(firstKeeper.publicKey, keeperPublicKeys[0])
+    assert.equal(firstKeeper.keyPartHash, hash_1)
+
+    const secondKeeper = assembleKeeperStruct(await contract.activeKeepers(addr.keeper[2]))
+    assert.equal(secondKeeper.publicKey, keeperPublicKeys[2])
+    assert.equal(secondKeeper.keyPartHash, hash_2)
+  })
+
+  it(`allows owner to activate the contract`, async () => {
 
     await assertTxSucceeds(contract.activate(
       encryptionResult.shareLength,
@@ -99,21 +108,11 @@ contract('CryptoLegacy', (accounts) => {
       }
     ))
 
-    {
-      const numKeepers = await contract.getNumKeepers()
-      assert.equal(numKeepers.toNumber(), 2, `num keepers after activation`)
+    const numKeepers = await contract.getNumKeepers()
+    assert.equal(numKeepers.toNumber(), 2, `num keepers`)
 
-      const state = await contract.state()
-      assert.equal(state.toNumber(), States.Active, `state after activation`)
-    }
-
-    const firstKeeper = assembleKeeperStruct(await contract.activeKeepers(addr.keeper[0]))
-    assert.equal(firstKeeper.publicKey, keeperPublicKeys[0])
-    assert.equal(firstKeeper.keyPartHash, hash_1)
-
-    const secondKeeper = assembleKeeperStruct(await contract.activeKeepers(addr.keeper[2]))
-    assert.equal(secondKeeper.publicKey, keeperPublicKeys[2])
-    assert.equal(secondKeeper.keyPartHash, hash_2)
+    const state = await contract.state()
+    assert.equal(state.toNumber(), States.Active, `state`)
   })
 
   it(`Keeper couldn't check-in for contract owner`, async () => {
