@@ -1,22 +1,23 @@
-const assert = require('chai').assert
+import {States, assembleKeeperStruct} from '../../dms/src/utils/contract-api'
+
+import {getAddresses,
+  assert,
+  assertTxSucceeds,
+  assertTxSucceedsGeneratingEvents,
+  assertTxFails,
+  acceptKeepersAndActivate} from './helpers'
+
+import {keeperPublicKeys} from './data'
+
 const CryptoLegacy = artifacts.require('./CryptoLegacyDebug.sol')
 const SafeMath = artifacts.require('./SafeMath.sol')
-
-const {assertTxSucceeds, assertTxSucceedsGeneratingEvents, assertTxFails} = require('./helpers')
-const {States, assembleKeeperStruct} = require('../utils/contract-api')
-const {keeperPublicKeys} = require('./data')
 
 // TODO: test that continuation contract cannot be announced in CallForKeys state
 // TODO: test that continuation contract cannot be announced in Cancelled state
 
 contract('CryptoLegacy, rotating Keepers:', (accounts) => {
 
-  function getAddresses() {
-    const [_, Alice, Bob, ...keeper] = accounts
-    return {Alice, Bob, keeper}
-  }
-
-  const addr = getAddresses()
+  const addr = getAddresses(accounts)
   const keepingFees = [100, 150, 200]
 
   const checkInIntervalSec = 2 * 60 * 60 // 2 hours
@@ -29,7 +30,7 @@ contract('CryptoLegacy, rotating Keepers:', (accounts) => {
     await assertTxSucceeds(contract.setVersion(2), `setting main version`);
 
     continuationContract = await CryptoLegacy.new(checkInIntervalSec, {from: addr.Alice})
-    await assertTxSucceeds(continuationContract.setVersion(2), `setting cont version`);
+    await assertTxSucceeds(continuationContract.setVersion(2), `setting continuation version`)
   })
 
   it(`doesn't allow to announce continuation contract in CallForKeepers state`, async () => {
@@ -72,20 +73,23 @@ contract('CryptoLegacy, rotating Keepers:', (accounts) => {
   })
 
   it(`allows owner to accept selected Keeper proposals and activate the contract`, async () => {
-    await assertTxSucceeds(contract.acceptKeepers(
-      [0, 2], // selected proposal indices
-      ['0x1122330000000000000000000000000000000000000000000000000000000000', // hashes of key parts
-       '0x4455660000000000000000000000000000000000000000000000000000000000'],
-      '0xaabbcc', // encrypted key parts, packed into byte array
-      '0xabcdef', // encrypted data
-      '0x0000110000000000000000000000000000000000000000000000000000000000', // hash of original data
-      42, // counter value for AES CTR mode,
-      {
-        from: addr.Alice,
-        value: keepingFees[0] + keepingFees[2]
-      }
-    ))
-    assert.equal(await contract.state(), States.Active)
+
+    await acceptKeepersAndActivate(contract, {
+      selectedProposalIndices: [0, 2],
+      keyPartHashes: [
+        '0x1122330000000000000000000000000000000000000000000000000000000000',
+        '0x4455660000000000000000000000000000000000000000000000000000000000'],
+      encryptedKeyParts: '0xabcdef',
+      shareLength: 42,
+      encryptedLegacyData: '0x123456',
+      legacyDataHash: '0x678901',
+      aesCounter: 43
+    }, {
+      from: addr.Alice,
+      value: keepingFees[0] + keepingFees[2]
+    })
+
+    assert.equal(await contract.state(), States.Active, `contract state`)
   })
 
   it(`doesn't allow non-owner to announce continuation contract`, async () => {
