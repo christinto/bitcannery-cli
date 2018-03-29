@@ -82,7 +82,7 @@ export async function inspectTransaction(txResultPromise) {
   const tx = await web3.eth.getTransaction(txResult.tx)
   const {receipt} = txResult
   const success = receipt.status !== undefined
-    ? +toBigNumber(receipt.status) === 1 // Since Byzantium fork
+    ? +toBigNumber(receipt.status, 0) === 1 // Since Byzantium fork
     : receipt.gasUsed < tx.gas // Before Byzantium fork (current version of TestRPC)
   const txPriceWei = new BigNumber(tx.gasPrice).times(receipt.gasUsed)
   const events = txResult.logs
