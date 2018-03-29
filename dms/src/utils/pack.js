@@ -1,4 +1,4 @@
-import prefixUtils from './prefix'
+import * as prefixUtils from './prefix'
 
 const ZERO_PADDING = '0000'
 const SEGMENT_LENGTH_FIELD_LENGTH = ZERO_PADDING.length

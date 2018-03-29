@@ -1,4 +1,4 @@
-pragma solidity 0.4.18;
+pragma solidity ^0.4.18;
 
 import "./SafeMath.sol";
 import "./CryptoLegacyBaseAPI.sol";
@@ -215,6 +215,8 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     for (uint i = 0; i < selectedProposalIndices.length; i++) {
       uint proposalIndex = selectedProposalIndices[i];
       KeeperProposal storage proposal = keeperProposals[proposalIndex];
+
+      require(activeKeepers[proposal.keeperAddress].lastCheckInAt == 0);
 
       activeKeepers[proposal.keeperAddress] = ActiveKeeper({
         publicKey: proposal.publicKey,

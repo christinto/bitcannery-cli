@@ -1,28 +1,24 @@
-const assert = require('chai').assert
-const CryptoLegacy = artifacts.require('./CryptoLegacyDebug.sol')
+import {assembleKeeperStruct} from '../../dms/src/utils/contract-api'
 
-const {assembleKeeperStruct} = require('../utils/contract-api')
-
-const {web3,
+import {web3,
+  getAddresses,
+  assert,
   assertTxSucceeds,
-  assertTxFails,
+  assertTxReverts,
   getAccountBalance,
   getAccountBalances,
   getActiveKeepersBalances,
   stringify,
   ceil,
   sum,
-  bigSum} = require('./helpers')
+  bigSum} from './helpers'
+
+const CryptoLegacy = artifacts.require('./CryptoLegacyDebug.sol')
 
 
 contract('CryptoLegacy, balance calculations:', (accounts) => {
 
-  function getAddresses() {
-    const [_, Alice, Bob, ...keeper] = accounts
-    return {Alice, Bob, keeper}
-  }
-
-  const addr = getAddresses()
+  const addr = getAddresses(accounts)
   const keepingFees = [100, 150, 200]
   const keeperPubKeys = ['0xaabbcc', '0xbbccdd', '0xccddee']
 
@@ -43,40 +39,45 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
     contract = await CryptoLegacy.new(checkInIntervalSec, {from: addr.Alice})
 
     await assertTxSucceeds(contract.submitKeeperProposal(
-      keeperPubKeys[0], keepingFees[0], {from: addr.keeper[0]}))
+      keeperPubKeys[0], keepingFees[0], {from: addr.keeper[0]}), `submitting first proposal`)
 
     await assertTxSucceeds(contract.submitKeeperProposal(
-      keeperPubKeys[1], keepingFees[1], {from: addr.keeper[1]}))
+      keeperPubKeys[1], keepingFees[1], {from: addr.keeper[1]}), `submitting second proposal`)
 
     await assertTxSucceeds(contract.submitKeeperProposal(
-      keeperPubKeys[2], keepingFees[2], {from: addr.keeper[2]}))
-  })
+      keeperPubKeys[2], keepingFees[2], {from: addr.keeper[2]}), `submitting third proposal`)
 
-
-  it(`when accepting Keepers, requires Alice to provide funds enough to pay ` +
-     `one keeping period to all selected Keepers`, async () => {
-
-    const acceptKeepersArgs = [
+    await assertTxSucceeds(contract.acceptKeepers(
       selectedKeeperIndices, // selectedProposalIndices
       selectedKeyPartHashes, // keyPartHashes
       '0xaaabbbaaabbbaaabbb', // encryptedKeyParts
-      '0xaaabbbaaabbbaaabbb', // _encryptedData
-      '0x112311231123112311', // dataHash
-      42, // aesCounter
+      {from: addr.Alice}),
+      `accepting keepers`)
+  })
+
+
+  it(`in order to activate the contract, requires Alice to provide enough funds ` +
+     `to pay one keeping period to all selected Keepers`, async () => {
+
+    const activateArgs = [
+      42, // keeper key part length
+      '0xaaabbbaaabbbaaabbb', // encrypted data
+      '0x112311231123112311', // hash of original data
+      43, // counter value for AES CTR mode
     ]
 
-    await assertTxFails(contract.acceptKeepers(
-      ...acceptKeepersArgs,
-      {from: addr.Alice, value: onePeriodTotalKeepingFee - 1}
-    ))
+    await assertTxReverts(contract.activate(
+      ...activateArgs,
+      {from: addr.Alice, value: onePeriodTotalKeepingFee - 1}),
+      `attempting to activate without providing enough funds`)
 
-    await assertTxSucceeds(contract.acceptKeepers(
-      ...acceptKeepersArgs,
-      {from: addr.Alice, value: onePeriodTotalKeepingFee}
-    ))
+    await assertTxSucceeds(contract.activate(
+      ...activateArgs,
+      {from: addr.Alice, value: onePeriodTotalKeepingFee}),
+      `activating by providing enough funds`)
 
     const numKeepers = await contract.getNumKeepers()
-    assert.equal(numKeepers.toNumber(), selectedKeeperIndices.length)
+    assert.equal(numKeepers.toNumber(), selectedKeeperIndices.length, `number of keeeprs`)
   })
 
 
@@ -115,11 +116,11 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
 
     // doesn't allow Alice to check in if she provdes less funds than expected
 
-    await assertTxFails(
+    await assertTxReverts(
       contract.ownerCheckIn({from: addr.Alice, value: 0}),
       `supplying zero funds`)
 
-    await assertTxFails(
+    await assertTxReverts(
       contract.ownerCheckIn({from: addr.Alice, value: requiredContractBalanceIncrease - 1}),
       `not supplying enough funds`)
 
