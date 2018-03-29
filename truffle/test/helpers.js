@@ -152,24 +152,24 @@ export async function acceptKeepersAndActivate(contract, {
   shareLength,
   encryptedLegacyData,
   legacyDataHash,
-  aesCounter,
-}, {
-  from,
-  value,
-}) {
+  aesCounter},
+  {from, value},
+  message,
+) {
   await assertTxSucceeds(contract.acceptKeepers(
     selectedProposalIndices,
     keyPartHashes,
     encryptedKeyParts,
-    {from},
-  ))
+    {from}),
+    message ? `${message} (accepting keepers)` : `accepting keepers`)
+
   await assertTxSucceeds(contract.activate(
     shareLength,
     encryptedLegacyData,
     legacyDataHash,
     aesCounter,
-    {from, value},
-  ))
+    {from, value}),
+    message ? `${message} (accepting keepers)` : `activating contract`)
 }
 
 

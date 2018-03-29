@@ -112,26 +112,28 @@ contract('CryptoLegacy, proposal submission:', (accounts) => {
     }, {from: addr.Alice, value: 200 + 50})
 
     const state = await contract.state()
-    assert.equal(state.toNumber(), States.Active)
+    assert.equal(state.toNumber(), States.Active, `contract state`)
 
     await assertTxFails(contract.submitKeeperProposal(
       '0x42424242',
       100,
-      {from: addr.keeper[3]})
+      {from: addr.keeper[3]}),
+      `attempting to submit proposal`
     )
   })
 
   it(`doesn't allow submitting proposals when contract is in CallForKeys state`, async () => {
-    await assertTxSucceeds(contract.increaseTimeBy(checkInIntervalSec + 1))
-    await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper[2]}))
+    await assertTxSucceeds(contract.increaseTimeBy(checkInIntervalSec + 1), `increasing time`)
+    await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper[2]}), `keeper check-in`)
 
     const state = await contract.state()
-    assert.equal(state.toNumber(), States.CallForKeys)
+    assert.equal(state.toNumber(), States.CallForKeys, `contract state`)
 
     await assertTxFails(contract.submitKeeperProposal(
       '0x42424243',
       100,
-      {from: addr.keeper[3]})
+      {from: addr.keeper[3]}),
+      `attempting to submit proposal`
     )
   })
 
