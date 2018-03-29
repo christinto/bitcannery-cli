@@ -11,13 +11,21 @@ async function inspectTransaction(txResultPromise) {
   const {receipt} = txResult
   const success =
     receipt.status !== undefined
-      ? receipt.status === '0x1' || receipt.status === 1 // Since Byzantium fork
+      ? +toBigNumber(receipt.status, 0) === 1 // Since Byzantium fork
       : receipt.gasUsed < tx.gas // Before Byzantium fork (current version of TestRPC)
   const txPriceWei = new BigNumber(tx.gasPrice).times(receipt.gasUsed)
   const events = txResult.logs
     .map(log => (log.event ? {name: log.event, args: log.args} : null))
     .filter(x => !!x)
   return {result: txResult, txHash: txResult.tx, success, txPriceWei, events}
+}
+
+function toBigNumber(val, defaultVal) {
+  try {
+    return new BigNumber(val)
+  } catch (err) {
+    return new BigNumber(defaultVal)
+  }
 }
 
 export default tx
