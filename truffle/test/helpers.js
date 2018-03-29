@@ -25,16 +25,14 @@ export async function assertTxFails(txResultPromise, message) {
   let txProps
   try {
     txProps = await inspectTransaction(txResultPromise)
-    assert.fail('transaction was expected to fail but succeeded' +
-      (message ? ': ' + message : ''))
   } catch (err) {
-    const revertFound = err.message.search('revert') >= 0
-    assert(revertFound, `transaction failed with unexpected error "${err}" (expected revert)` +
+    const revertFound = /revert|invalid opcode/.test(err.message)
+    assert(revertFound, `transaction failed with unexpected error "${err}"` +
       (message ? ': ' + message : ''))
     return
   }
   if (txProps.success) {
-    assert.fail('transaction was expected to fail but succeeded' +
+    assert(false, 'transaction was expected to fail but succeeded' +
       (message ? ': ' + message : '')
     )
   }
