@@ -12,14 +12,11 @@ import {keeperPublicKeys} from './data'
 const CryptoLegacy = artifacts.require('./CryptoLegacyDebug.sol')
 const SafeMath = artifacts.require('./SafeMath.sol')
 
-// TODO: test that continuation contract cannot be announced in CallForKeys state
-// TODO: test that continuation contract cannot be announced in Cancelled state
 
 contract('CryptoLegacy, rotating Keepers:', (accounts) => {
 
   const addr = getAddresses(accounts)
   const keepingFees = [100, 150, 200]
-
   const checkInIntervalSec = 2 * 60 * 60 // 2 hours
 
   let contract
@@ -172,4 +169,91 @@ contract('CryptoLegacy, rotating Keepers:', (accounts) => {
     assert.equal(await contract.state(), States.Cancelled)
   })
 
+})
+
+
+contract('CryptoLegacy, rotating Keepers:', (accounts) => {
+
+  const addr = getAddresses(accounts)
+  const keepingFees = [100, 150, 200]
+  const checkInIntervalSec = 2 * 60 * 60 // 2 hours
+
+  let contract
+  let continuationContract
+
+  before(async () => {
+    contract = await CryptoLegacy.new(checkInIntervalSec, {from: addr.Alice})
+    await assertTxSucceeds(contract.setVersion(1), `setting main version`);
+
+    continuationContract = await CryptoLegacy.new(checkInIntervalSec, {from: addr.Alice})
+    await assertTxSucceeds(continuationContract.setVersion(2), `setting continuation version`)
+
+    await assertTxSucceeds(contract.submitKeeperProposal(
+      keeperPublicKeys[0],
+      keepingFees[0],
+      {from: addr.keeper[0]}),
+      `submitting first proposal`)
+
+    await assertTxSucceeds(contract.submitKeeperProposal(
+      keeperPublicKeys[1],
+      keepingFees[1],
+      {from: addr.keeper[1]}),
+      `submitting second proposal`)
+
+    await acceptKeepersAndActivate(contract, {
+      selectedProposalIndices: [0, 1],
+      keyPartHashes: [
+        '0x1122330000000000000000000000000000000000000000000000000000000000',
+        '0x4455660000000000000000000000000000000000000000000000000000000000'],
+      encryptedKeyParts: '0xabcdef',
+      shareLength: 42,
+      encryptedLegacyData: '0x123456',
+      legacyDataHash: '0x678901',
+      aesCounter: 43
+    }, {
+      from: addr.Alice,
+      value: keepingFees[0] + keepingFees[1]
+    })
+
+    await assertTxSucceeds(contract.increaseTimeBy(checkInIntervalSec + 1), `increasing time`)
+    await assertTxSucceeds(contract.keeperCheckIn({from: addr.keeper[0]}), `keeper checks in`)
+
+    assert.equal(+await contract.state(), States.CallForKeys, `contract state`)
+  })
+
+  it(`doesn't allow to announce continuation contract in CallForKeys state`, async () => {
+    await assertTxFails(contract.announceContinuationContract(
+      continuationContract.address,
+      {from: addr.Alice}
+    ))
+  })
+
+})
+
+
+contract('CryptoLegacy, rotating Keepers:', (accounts) => {
+
+  const addr = getAddresses(accounts)
+  const checkInIntervalSec = 2 * 60 * 60 // 2 hours
+
+  let contract
+  let continuationContract
+
+  before(async () => {
+    contract = await CryptoLegacy.new(checkInIntervalSec, {from: addr.Alice})
+    await assertTxSucceeds(contract.setVersion(1), `setting main version`);
+
+    continuationContract = await CryptoLegacy.new(checkInIntervalSec, {from: addr.Alice})
+    await assertTxSucceeds(continuationContract.setVersion(2), `setting continuation version`)
+
+    await assertTxSucceeds(contract.cancel({from: addr.Alice, value: 0}), `cancelling contract`)
+    assert.equal(+await contract.state(), States.Cancelled, `contract state`)
+  })
+
+  it(`doesn't allow to announce continuation contract in Cancelled state`, async () => {
+    await assertTxFails(contract.announceContinuationContract(
+      continuationContract.address,
+      {from: addr.Alice}
+    ))
+  })
 })
