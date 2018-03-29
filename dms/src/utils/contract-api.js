@@ -15,7 +15,13 @@ export const States = {
 States.stringify = stateToString
 
 export function stateToString(number) {
-  return ['CallForKeepers', 'Active', 'CallForKeys', 'Cancelled'][+number]
+  const name = ['CallForKeepers', 'Active', 'CallForKeys', 'Cancelled'][+number]
+  if (!name) {
+    console.error(`WARN invalid state: ${number}`)
+    return 'INVALID_STATE'
+  } else {
+    return name
+  }
 }
 
 export function assembleKeeperStruct(rawStruct) {
