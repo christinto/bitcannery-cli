@@ -5,6 +5,7 @@ import {keeperPublicKeys} from './data'
 
 const CryptoLegacy = artifacts.require('./CryptoLegacyDebug.sol')
 
+// TODO: test accepting multiple chunks of keepers by calling acceptKeepers() multiple times
 
 contract('CryptoLegacy, activation:', (accounts) => {
 
