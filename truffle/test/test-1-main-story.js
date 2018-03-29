@@ -7,7 +7,7 @@ import {
   getAddresses,
   assert,
   assertTxSucceeds,
-  assertTxFails,
+  assertTxReverts,
   getAccountBalance,
   getAccountBalances,
   getActiveKeepersBalances,
@@ -63,7 +63,7 @@ contract('CryptoLegacy', (accounts) => {
   })
 
   it(`owner couldn't check-in before Keepers are accepted`, async () => {
-    await assertTxFails(contract.ownerCheckIn({from: addr.Alice}))
+    await assertTxReverts(contract.ownerCheckIn({from: addr.Alice}))
   })
 
   it(`encrypting data`, async () => {
@@ -117,15 +117,15 @@ contract('CryptoLegacy', (accounts) => {
   })
 
   it(`Keeper couldn't check-in for contract owner`, async () => {
-    await assertTxFails(contract.ownerCheckIn({from: addr.keeper[0]}))
+    await assertTxReverts(contract.ownerCheckIn({from: addr.keeper[0]}))
   })
 
   it(`owner could check-in in Active state`, async () => {
-    await assertTxFails(contract.ownerCheckIn({from: addr.keeper[0]}))
+    await assertTxReverts(contract.ownerCheckIn({from: addr.keeper[0]}))
   })
 
   it(`non-accepted Keeper couldn't check in`, async () => {
-    await assertTxFails(contract.keeperCheckIn({from: addr.keeper[1]}))
+    await assertTxReverts(contract.keeperCheckIn({from: addr.keeper[1]}))
   })
 
   it(`accepted Keeper could check in`, async () => {
@@ -133,7 +133,7 @@ contract('CryptoLegacy', (accounts) => {
   })
 
   it(`keeper could send key only after Termination event`, async () => {
-    await assertTxFails(contract.supplyKey(''), {from: addr.keeper[0]})
+    await assertTxReverts(contract.supplyKey(''), {from: addr.keeper[0]})
   })
 
   it(`Keeper check-in transfers contract to CallForKeys state if owner `+
@@ -147,11 +147,11 @@ contract('CryptoLegacy', (accounts) => {
   })
 
   it(`non-accepted keeper couldn't send key`, async () => {
-    await assertTxFails(contract.supplyKey('arara', {from: addr.keeper[1]}))
+    await assertTxReverts(contract.supplyKey('arara', {from: addr.keeper[1]}))
   })
 
   it(`accepted keeper couldn't send invalid key part`, async () => {
-    await assertTxFails(contract.supplyKey('ururu', {from: addr.keeper[0]}))
+    await assertTxReverts(contract.supplyKey('ururu', {from: addr.keeper[0]}))
   })
 
   it(`accepted keeper could send valid key part and receive their keeping fee`, async () => {
@@ -230,8 +230,8 @@ contract('CryptoLegacy', (accounts) => {
       await decryptKeyPart(encryptedKeyPartsChunks, encryptionResult.keyPartHashes, 0, 0),
       await decryptKeyPart(encryptedKeyPartsChunks, encryptionResult.keyPartHashes, 1, 2),
     ]
-    await assertTxFails(contract.supplyKey(decryptedKeyPart_1, {from: addr.keeper[0]}))
-    await assertTxFails(contract.supplyKey(decryptedKeyPart_3, {from: addr.keeper[2]}))
+    await assertTxReverts(contract.supplyKey(decryptedKeyPart_1, {from: addr.keeper[0]}))
+    await assertTxReverts(contract.supplyKey(decryptedKeyPart_3, {from: addr.keeper[2]}))
   })
 
   it(`checking in after supplying key part has no effect`, async () => {

@@ -4,7 +4,7 @@ import {web3,
   getAddresses,
   assert,
   assertTxSucceeds,
-  assertTxFails,
+  assertTxReverts,
   acceptKeepersAndActivate} from './helpers'
 
 import {keeperPublicKeys} from './data'
@@ -55,7 +55,7 @@ contract('CryptoLegacy, proposal submission:', (accounts) => {
   })
 
   it(`doesn't allow to submit two proposals with same public key`, async () => {
-    await assertTxFails(contract.submitKeeperProposal(
+    await assertTxReverts(contract.submitKeeperProposal(
       keeperPublicKeys[1],
       100, // keeping fee
       {from: addr.keeper[3]})
@@ -63,24 +63,24 @@ contract('CryptoLegacy, proposal submission:', (accounts) => {
   })
 
   it(`doesn't allow the same Keeper to submit a proposal twice`, async () => {
-    await assertTxFails(contract.submitKeeperProposal(
+    await assertTxReverts(contract.submitKeeperProposal(
       keeperPublicKeys[0],
       100, // keeping fee
       {from: addr.keeper[0]}), 'same key')
-    await assertTxFails(contract.submitKeeperProposal(
+    await assertTxReverts(contract.submitKeeperProposal(
       '0x123456',
       100, // keeping fee
       {from: addr.keeper[0]}), 'different key')
   })
 
   it(`doesn't allow owner to submit a proposal`, async () => {
-    await assertTxFails(contract.submitKeeperProposal(
+    await assertTxReverts(contract.submitKeeperProposal(
       keeperPublicKeys[0],
       100, // keeping fee
       {from: addr.Alice}),
     'same key')
 
-    await assertTxFails(contract.submitKeeperProposal(
+    await assertTxReverts(contract.submitKeeperProposal(
       '0x123456',
       100, // keeping fee
       {from: addr.Alice}),
@@ -92,7 +92,7 @@ contract('CryptoLegacy, proposal submission:', (accounts) => {
     for (let i = 0; i < 129; ++i) {
       longPubKey += 'ab'
     }
-    await assertTxFails(contract.submitKeeperProposal(
+    await assertTxReverts(contract.submitKeeperProposal(
       longPubKey,
       150, // keeping fee
       {from: addr.keeper[3]})
@@ -114,7 +114,7 @@ contract('CryptoLegacy, proposal submission:', (accounts) => {
     const state = await contract.state()
     assert.equal(state.toNumber(), States.Active, `contract state`)
 
-    await assertTxFails(contract.submitKeeperProposal(
+    await assertTxReverts(contract.submitKeeperProposal(
       '0x42424242',
       100,
       {from: addr.keeper[3]}),
@@ -129,7 +129,7 @@ contract('CryptoLegacy, proposal submission:', (accounts) => {
     const state = await contract.state()
     assert.equal(state.toNumber(), States.CallForKeys, `contract state`)
 
-    await assertTxFails(contract.submitKeeperProposal(
+    await assertTxReverts(contract.submitKeeperProposal(
       '0x42424243',
       100,
       {from: addr.keeper[3]}),

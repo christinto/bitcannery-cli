@@ -21,14 +21,29 @@ export const web3 = new Web3(global.web3.currentProvider)
 
 // general helpers
 
-export async function assertTxFails(txResultPromise, message) {
+export function assertTxReverts(txResultPromise, message) {
+  return assertTxFailsWithError(
+    err => /revert/.test(err.message),
+    txResultPromise,
+    message
+  )
+}
+
+export function assertTxFails(txResultPromise, message) {
+  return assertTxFailsWithError(
+    err => /revert|invalid opcode/.test(err.message),
+    txResultPromise,
+    message
+  )
+}
+
+export async function assertTxFailsWithError(errorPred, txResultPromise, message) {
   let txProps
   try {
     txProps = await inspectTransaction(txResultPromise)
   } catch (err) {
-    const revertFound = /revert|invalid opcode/.test(err.message)
-    assert(revertFound, (message ? message + ': ' : '') +
-      `transaction failed with unexpected error: ${err.message}`)
+    assert(errorPred(err), (message ? message + ': ' : '') +
+      `transaction failed with unexpected error: ${err.stack}`)
     return
   }
   if (txProps.success) {

@@ -4,7 +4,7 @@ import {web3,
   getAddresses,
   assert,
   assertTxSucceeds,
-  assertTxFails,
+  assertTxReverts,
   getAccountBalance,
   getAccountBalances,
   getActiveKeepersBalances,
@@ -66,7 +66,7 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
       43, // counter value for AES CTR mode
     ]
 
-    await assertTxFails(contract.activate(
+    await assertTxReverts(contract.activate(
       ...activateArgs,
       {from: addr.Alice, value: onePeriodTotalKeepingFee - 1}),
       `attempting to activate without providing enough funds`)
@@ -116,11 +116,11 @@ contract('CryptoLegacy, balance calculations:', (accounts) => {
 
     // doesn't allow Alice to check in if she provdes less funds than expected
 
-    await assertTxFails(
+    await assertTxReverts(
       contract.ownerCheckIn({from: addr.Alice, value: 0}),
       `supplying zero funds`)
 
-    await assertTxFails(
+    await assertTxReverts(
       contract.ownerCheckIn({from: addr.Alice, value: requiredContractBalanceIncrease - 1}),
       `not supplying enough funds`)
 

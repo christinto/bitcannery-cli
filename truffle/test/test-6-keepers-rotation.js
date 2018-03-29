@@ -4,7 +4,7 @@ import {getAddresses,
   assert,
   assertTxSucceeds,
   assertTxSucceedsGeneratingEvents,
-  assertTxFails,
+  assertTxReverts,
   acceptKeepersAndActivate} from './helpers'
 
 import {keeperPublicKeys} from './data'
@@ -31,7 +31,7 @@ contract('CryptoLegacy, rotating Keepers:', (accounts) => {
   })
 
   it(`doesn't allow to announce continuation contract in CallForKeepers state`, async () => {
-    await assertTxFails(contract.announceContinuationContract(
+    await assertTxReverts(contract.announceContinuationContract(
       continuationContract.address,
       {from: addr.Alice}
     ))
@@ -63,7 +63,7 @@ contract('CryptoLegacy, rotating Keepers:', (accounts) => {
 
   it(`doesn't allow to announce continuation contract in CallForKeepers state even when ` +
     `there are pending keeping proposals`, async () => {
-    await assertTxFails(contract.announceContinuationContract(
+    await assertTxReverts(contract.announceContinuationContract(
       continuationContract.address,
       {from: addr.Alice}
     ))
@@ -90,19 +90,19 @@ contract('CryptoLegacy, rotating Keepers:', (accounts) => {
   })
 
   it(`doesn't allow non-owner to announce continuation contract`, async () => {
-    await assertTxFails(contract.announceContinuationContract(
+    await assertTxReverts(contract.announceContinuationContract(
       continuationContract.address,
       {from: addr.Bob}
     ), 'Bob')
 
-    await assertTxFails(contract.announceContinuationContract(
+    await assertTxReverts(contract.announceContinuationContract(
       continuationContract.address,
       {from: addr.keeper[0]}
     ), 'a Keeper')
   })
 
   it(`doesn't allow to announce a non-existing continuation contract`, async () => {
-    await assertTxFails(contract.announceContinuationContract(
+    await assertTxReverts(contract.announceContinuationContract(
       '0x1234567890abcdef000000000000000000000000',
       {from: addr.Alice}
     ))
@@ -111,7 +111,7 @@ contract('CryptoLegacy, rotating Keepers:', (accounts) => {
   it(`doesn't allow to announce a non-conforming continuation contract`, async () => {
     const safeMath = await SafeMath.new()
 
-    await assertTxFails(contract.announceContinuationContract(
+    await assertTxReverts(contract.announceContinuationContract(
       safeMath.address,
       {from: addr.keeper[0]}
     ))
@@ -121,7 +121,7 @@ contract('CryptoLegacy, rotating Keepers:', (accounts) => {
     const continuationContract = await CryptoLegacy.new(checkInIntervalSec, {from: addr.Alice})
     await assertTxSucceeds(continuationContract.setVersion(1), `setting version`);
 
-    await assertTxFails(contract.announceContinuationContract(
+    await assertTxReverts(contract.announceContinuationContract(
       continuationContract.address,
       {from: addr.Alice}
     ))
@@ -131,7 +131,7 @@ contract('CryptoLegacy, rotating Keepers:', (accounts) => {
     const continuationContract = await CryptoLegacy.new(checkInIntervalSec, {from: addr.Bob})
     await assertTxSucceeds(continuationContract.setVersion(2), `setting version`);
 
-    await assertTxFails(contract.announceContinuationContract(
+    await assertTxReverts(contract.announceContinuationContract(
       continuationContract.address,
       {from: addr.Alice}
     ))
@@ -158,7 +158,7 @@ contract('CryptoLegacy, rotating Keepers:', (accounts) => {
     const newContinuationContract = await CryptoLegacy.new(checkInIntervalSec, {from: addr.Alice})
     await assertTxSucceeds(newContinuationContract.setVersion(2), `setting version`);
 
-    await assertTxFails(contract.announceContinuationContract(
+    await assertTxReverts(contract.announceContinuationContract(
       newContinuationContract.address,
       {from: addr.Alice}
     ))
@@ -222,7 +222,7 @@ contract('CryptoLegacy, rotating Keepers:', (accounts) => {
   })
 
   it(`doesn't allow to announce continuation contract in CallForKeys state`, async () => {
-    await assertTxFails(contract.announceContinuationContract(
+    await assertTxReverts(contract.announceContinuationContract(
       continuationContract.address,
       {from: addr.Alice}
     ))
@@ -251,7 +251,7 @@ contract('CryptoLegacy, rotating Keepers:', (accounts) => {
   })
 
   it(`doesn't allow to announce continuation contract in Cancelled state`, async () => {
-    await assertTxFails(contract.announceContinuationContract(
+    await assertTxReverts(contract.announceContinuationContract(
       continuationContract.address,
       {from: addr.Alice}
     ))

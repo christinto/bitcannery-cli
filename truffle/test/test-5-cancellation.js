@@ -4,7 +4,7 @@ import {web3,
   getAddresses,
   assert,
   assertTxSucceeds,
-  assertTxFails,
+  assertTxReverts,
   acceptKeepersAndActivate,
   sum} from './helpers'
 
@@ -55,7 +55,7 @@ contract('CryptoLegacy, cancellation:', (accounts) => {
   })
 
   it(`doesn't allow keepers to cancel contract waiting for keeping proposals`, async () => {
-    await assertTxFails(contract.cancel({from: addr.keeper[0]}))
+    await assertTxReverts(contract.cancel({from: addr.keeper[0]}))
   })
 
   it(`owner can accept keepers and activate the contract`, async () => {
@@ -86,11 +86,11 @@ contract('CryptoLegacy, cancellation:', (accounts) => {
   })
 
   it(`doesn't allow keeper to cancel contract in active state`, async () => {
-    await assertTxFails(contract.cancel({from: addr.keeper[0]}))
+    await assertTxReverts(contract.cancel({from: addr.keeper[0]}))
   })
 
   it(`doesn't allow Bob to cancel contract in active state`, async () => {
-    await assertTxFails(contract.cancel({from: addr.Bob}))
+    await assertTxReverts(contract.cancel({from: addr.Bob}))
   })
 
   it(`allows keeper to check in to active contract`, async () => {
@@ -108,7 +108,7 @@ contract('CryptoLegacy, cancellation:', (accounts) => {
   })
 
   it(`doesn't allow keeper to supply key part to cancelled contract`, async () => {
-    await assertTxFails(contract.supplyKey(selectedKeyParts[0], {from: addr.keeper[0]}))
+    await assertTxReverts(contract.supplyKey(selectedKeyParts[0], {from: addr.keeper[0]}))
   })
 
 })

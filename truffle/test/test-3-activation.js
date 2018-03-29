@@ -1,6 +1,6 @@
 import {States, assembleKeeperStruct} from '../../dms/src/utils/contract-api'
 
-import {getAddresses, assertTxSucceeds, assertTxFails} from './helpers'
+import {getAddresses, assertTxSucceeds, assertTxReverts, assertTxFails} from './helpers'
 import {keeperPublicKeys} from './data'
 
 const CryptoLegacy = artifacts.require('./CryptoLegacyDebug.sol')
@@ -67,7 +67,7 @@ contract('CryptoLegacy, activation:', (accounts) => {
   const activationPrepayFee = keepingFees[0] + keepingFees[2]
 
   it(`doesn't allow owner to activate contract before accepting at least one keeper`, async () => {
-    await assertTxFails(contract.activate(
+    await assertTxReverts(contract.activate(
       ...activationParams,
       {from: addr.Alice, value: activationPrepayFee}
     ))
@@ -75,18 +75,18 @@ contract('CryptoLegacy, activation:', (accounts) => {
 
   it(`doesn't allow anonymous to activate contract before accepting at least one keeper`,
     async () => {
-    await assertTxFails(contract.activate(
+    await assertTxReverts(contract.activate(
       ...activationParams,
       {from: addr.keeper[3], value: activationPrepayFee}
     ))
   })
 
   it(`doesn't allow Keepers to accept themselves`, async () => {
-    await assertTxFails(contract.acceptKeepers(...acceptKeepersParams, {from: addr.keeper[0]}))
+    await assertTxReverts(contract.acceptKeepers(...acceptKeepersParams, {from: addr.keeper[0]}))
   })
 
   it(`doesn't allow Keepers to accept other Keepers`, async () => {
-    await assertTxFails(contract.acceptKeepers(...acceptKeepersParams, {from: addr.keeper[1]}))
+    await assertTxReverts(contract.acceptKeepers(...acceptKeepersParams, {from: addr.keeper[1]}))
   })
 
   it(`doesn't allow owner to accept non-proposed Keepers`, async () => {
@@ -125,7 +125,7 @@ contract('CryptoLegacy, activation:', (accounts) => {
   it(`doesn't allow owner to accept already accepted keepers`, async () => {
     const [acceptedIndices, keyPartHashes] = acceptKeepersParams
 
-    await assertTxFails(contract.acceptKeepers(
+    await assertTxReverts(contract.acceptKeepers(
       [acceptedIndices[1]],
       [keyPartHashes[1]],
       '0xddeeff',
@@ -146,7 +146,7 @@ contract('CryptoLegacy, activation:', (accounts) => {
   })
 
   it(`doesn't allow owner to activate already activated contract`, async () => {
-    await assertTxFails(contract.activate(
+    await assertTxReverts(contract.activate(
       ...activationParams,
       {from: addr.Alice, value: activationPrepayFee}
     ))
@@ -157,7 +157,7 @@ contract('CryptoLegacy, activation:', (accounts) => {
     const keyPartHashes = ['0x7788990000000000000000000000000000000000000000000000000000000000']
     const encryptedKeyParts = '0xddeeff'
 
-    await assertTxFails(contract.acceptKeepers(
+    await assertTxReverts(contract.acceptKeepers(
       acceptedIndices,
       keyPartHashes,
       encryptedKeyParts,
