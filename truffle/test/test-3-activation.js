@@ -133,8 +133,6 @@ contract('CryptoLegacy, activation:', (accounts) => {
     ))
   })
 
-  return
-
   it(`allows owner to activate the contract`, async () => {
     await assertTxSucceeds(contract.activate(
       ...activationParams,
@@ -149,7 +147,7 @@ contract('CryptoLegacy, activation:', (accounts) => {
 
   it(`doesn't allow owner to activate already activated contract`, async () => {
     await assertTxFails(contract.activate(
-      ...acceptKeepersParams,
+      ...activationParams,
       {from: addr.Alice, value: activationPrepayFee}
     ))
   })
