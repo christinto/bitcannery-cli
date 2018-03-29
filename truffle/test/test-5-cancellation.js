@@ -1,3 +1,5 @@
+import {States} from '../../dms/src/utils/contract-api'
+
 import {web3,
   getAddresses,
   assert,
@@ -5,8 +7,6 @@ import {web3,
   assertTxFails,
   acceptKeepersAndActivate,
   sum} from './helpers'
-
-import {States} from '../../dms/src/utils/contract-api'
 
 const CryptoLegacy = artifacts.require('./CryptoLegacy.sol')
 

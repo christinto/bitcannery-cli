@@ -1,4 +1,7 @@
-const CryptoLegacy = artifacts.require('./CryptoLegacyDebug.sol')
+import {States,
+  assembleKeeperStruct,
+  assembleEncryptedDataStruct,
+  fetchEncryptedKeyPartsChunks} from '../../dms/src/utils/contract-api'
 
 import {
   getAddresses,
@@ -14,10 +17,8 @@ import {
 
 import {keeperPublicKeys} from './data'
 
-import {States,
-  assembleKeeperStruct,
-  assembleEncryptedDataStruct,
-  fetchEncryptedKeyPartsChunks} from '../../dms/src/utils/contract-api'
+const CryptoLegacy = artifacts.require('./CryptoLegacyDebug.sol')
+
 
 // TODO: cleanup main story by extracting some of the tests to different files.
 //
