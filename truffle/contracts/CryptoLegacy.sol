@@ -209,6 +209,10 @@ contract CryptoLegacy is CryptoLegacyBaseAPI {
     ownerOnly()
     atState(States.CallForKeepers)
   {
+    require(selectedProposalIndices.length > 0);
+    require(keyPartHashes.length == selectedProposalIndices.length);
+    require(encryptedKeyParts.length > 0);
+
     uint timestamp = getBlockTimestamp();
     uint chunkKeepingFee = 0;
 
