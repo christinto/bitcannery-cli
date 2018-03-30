@@ -22,7 +22,7 @@
     "bluebird": "^3.5.1",
     "conf": "^1.3.1",
     "docker-names": "^1.0.3",
-    "eccrypto": "skozin/eccrypto#no-return-outside-function",
+    "eccrypto": "skozin/eccrypto#2bb889b",
     "ethereum-address": "0.0.4",
     "humps": "^2.0.1",
     "inquirer": "^5.0.1",
