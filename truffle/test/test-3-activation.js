@@ -1,11 +1,10 @@
 import {States, assembleKeeperStruct} from '../../dms/src/utils/contract-api'
 
-import {getAddresses, assertTxSucceeds, assertTxReverts, assertTxFails} from './helpers'
+import {assert, getAddresses, assertTxSucceeds, assertTxReverts, assertTxFails} from './helpers'
 import {keeperPublicKeys} from './data'
 
 const CryptoLegacy = artifacts.require('./CryptoLegacyDebug.sol')
 
-// TODO: test accepting multiple chunks of keepers by calling acceptKeepers() multiple times
 
 contract('CryptoLegacy, activation:', (accounts) => {
 
@@ -163,6 +162,184 @@ contract('CryptoLegacy, activation:', (accounts) => {
       encryptedKeyParts,
       {from: addr.Alice}
     ))
+  })
+
+})
+
+
+contract('CryptoLegacy, chunked activation:', (accounts) => {
+
+  const addr = getAddresses(accounts)
+  const keepingFees = [100, 150, 200]
+  const checkInIntervalSec = 2 * 60 * 60 // 2 hours
+
+  let contract
+
+  before(async () => {
+    contract = await CryptoLegacy.new(checkInIntervalSec, {from: addr.Alice})
+
+    await assertTxSucceeds(
+      contract.submitKeeperProposal(keeperPublicKeys[0], keepingFees[0], {from: addr.keeper[0]}),
+      `submitting first proposal`)
+
+    await assertTxSucceeds(
+      contract.submitKeeperProposal(keeperPublicKeys[1], keepingFees[1], {from: addr.keeper[1]}),
+      `submitting second proposal`)
+
+    await assertTxSucceeds(
+      contract.submitKeeperProposal(keeperPublicKeys[2], keepingFees[2], {from: addr.keeper[2]}),
+      `submitting third proposal`)
+  })
+
+  it(`doesn't allow owner to accept zero keepers`, async () => {
+    await assertTxReverts(contract.acceptKeepers(
+      [], // selected proposal indices
+      [], // hashes of keepers' key parts
+      '0xaabbcc', // encrypted key parts, packed into byte array,
+      {from: addr.Alice},
+    ))
+  })
+
+  const keyPartHashes = [
+    '0x1122330000000000000000000000000000000000000000000000000000000000',
+    '0x4455660000000000000000000000000000000000000000000000000000000000',
+    '0x7788990000000000000000000000000000000000000000000000000000000000',
+  ]
+
+  it(`doesn't allow to pass different number of accepted indices and key part hashes while ` +
+     `accepting keepers`, async () => {
+
+    await assertTxReverts(contract.acceptKeepers(
+      [0, 2], // selected proposal indices
+      [keyPartHashes[0]], // key part hashes
+      '0xaabbcc', // encrypted key parts, packed into byte array,
+      {from: addr.Alice},
+    ))
+  })
+
+  it(`doesn't allow to pass empty byte array for packed key parts while accepting keepers`,
+    async () => {
+
+    await assertTxReverts(contract.acceptKeepers(
+      [0, 2], // selected proposal indices
+      [keyPartHashes[0], keyPartHashes[2]], // key part hashes
+      '0x', // encrypted key parts, packed into byte array,
+      {from: addr.Alice},
+    ))
+  })
+
+  it(`allows owner to accept first chunk of keepers`, async () => {
+    await assertTxSucceeds(contract.acceptKeepers(
+      [0, 2], // selected proposal indices
+      [keyPartHashes[0], keyPartHashes[2]], // key part hashes
+      '0xaabbcc', // encrypted key parts, packed into byte array,
+      {from: addr.Alice},
+    ))
+  })
+
+  it(`accepting first chunk of keepers updates total keeping fee`, async () => {
+    const totalKeepingFee = await contract.totalKeepingFee()
+    assert.bignumEqual(totalKeepingFee, keepingFees[0] + keepingFees[2])
+  })
+
+  it(`doesn't allow anybody from Alice to accept second chunk of keepers`, async () => {
+    await assertTxReverts(contract.acceptKeepers(
+      [1], // selected proposal indices
+      [keyPartHashes[1]], // key part hashes
+      '0xddeeff', // encrypted key parts, packed into byte array,
+      {from: addr.Bob},
+    ), `Bob`)
+    await assertTxReverts(contract.acceptKeepers(
+      [1], // selected proposal indices
+      [keyPartHashes[1]], // key part hashes
+      '0xddeeff', // encrypted key parts, packed into byte array,
+      {from: addr.keeper[0]},
+    ), `a keeper`)
+  })
+
+  it(`allows owner to accept second chunk of keepers`, async () => {
+    await assertTxSucceeds(contract.acceptKeepers(
+      [1], // selected proposal indices
+      [keyPartHashes[1]], // key part hashes
+      '0xddeeff', // encrypted key parts, packed into byte array,
+      {from: addr.Alice},
+    ))
+  })
+
+  it(`accepting second chunk of keepers updates total keeping fee`, async () => {
+    const totalKeepingFee = await contract.totalKeepingFee()
+    assert.bignumEqual(totalKeepingFee, keepingFees[0] + keepingFees[1] + keepingFees[2])
+  })
+
+  it(`doesn't allow owner to accept already accepted keepers`, async () => {
+    await assertTxReverts(contract.acceptKeepers(
+      [2], // selected proposal indices
+      [keyPartHashes[2]], // key part hashes
+      '0xddeeff', // encrypted key parts, packed into byte array,
+      {from: addr.Alice},
+    ), `keeper 3`)
+    await assertTxReverts(contract.acceptKeepers(
+      [0, 1], // selected proposal indices
+      [keyPartHashes[0, 1]], // key part hashes
+      '0xddeeff', // encrypted key parts, packed into byte array,
+      {from: addr.Alice},
+    ), `keepers 1, 2`)
+  })
+
+  it(`accepting keepers adds them to active keepers`, async () => {
+    const numKeepers = await contract.getNumKeepers()
+    assert.equal(numKeepers.toNumber(), 3, `number of keepers`)
+
+    const firstKeeper = assembleKeeperStruct(await contract.activeKeepers(addr.keeper[0]))
+    assert.equal(firstKeeper.publicKey, keeperPublicKeys[0], `first Keeper's public key`)
+    assert.equal(firstKeeper.keyPartHash, keyPartHashes[0], `first Keeper's key part hash`)
+
+    const secondKeeper = assembleKeeperStruct(await contract.activeKeepers(addr.keeper[1]))
+    assert.equal(secondKeeper.publicKey, keeperPublicKeys[1], `second Keeper's public key`)
+    assert.equal(secondKeeper.keyPartHash, keyPartHashes[1], `second Keeper's key part hash`)
+
+    const thirdKeeper = assembleKeeperStruct(await contract.activeKeepers(addr.keeper[2]))
+    assert.equal(thirdKeeper.publicKey, keeperPublicKeys[2], `third Keeper's public key`)
+    assert.equal(thirdKeeper.keyPartHash, keyPartHashes[2], `third Keeper's key part hash`)
+  })
+
+  it(`doesn't allow owner to activate the contract supplying insufficient funds`, async () => {
+    const activationPrepayFee = keepingFees[0] + keepingFees[1] + keepingFees[2]
+    await assertTxReverts(contract.activate(
+      42, // keeper key part length
+      '0xabcdef', // encrypted data
+      '0x0000110000000000000000000000000000000000000000000000000000000000', // original data hash
+      43, // counter value for AES CTR mode
+      {from: addr.Alice, value: activationPrepayFee - 1}
+    ))
+  })
+
+  it(`allows owner to activate the contract`, async () => {
+    const activationPrepayFee = keepingFees[0] + keepingFees[1] + keepingFees[2]
+    await assertTxSucceeds(contract.activate(
+      42, // keeper key part length
+      '0xabcdef', // encrypted data
+      '0x0000110000000000000000000000000000000000000000000000000000000000', // original data hash
+      43, // counter value for AES CTR mode
+      {from: addr.Alice, value: activationPrepayFee}
+    ))
+    const state = await contract.state()
+    assert.equal(state.toNumber(), States.Active, `contract state`)
+  })
+
+  it(`after activating the contract, active keepers stay the same`, async () => {
+    const numKeepers = await contract.getNumKeepers()
+    assert.equal(numKeepers.toNumber(), 3, `number of keepers`)
+
+    const [firstKeeper, secondKeeper, thirdKeeper] = await Promise.all([
+      contract.activeKeepers(addr.keeper[0]),
+      contract.activeKeepers(addr.keeper[1]),
+      contract.activeKeepers(addr.keeper[2]),
+    ].map(p => p.then(x => assembleKeeperStruct(x))))
+
+    assert.equal(firstKeeper.publicKey, keeperPublicKeys[0], `first Keeper's public key`)
+    assert.equal(secondKeeper.publicKey, keeperPublicKeys[1], `second Keeper's public key`)
+    assert.equal(thirdKeeper.publicKey, keeperPublicKeys[2], `third Keeper's public key`)
   })
 
 })
