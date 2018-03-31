@@ -36,7 +36,7 @@ export async function cancelContract(instance, address) {
   const txResult = await contractTx(instance, 'cancel', {
     from: address,
     value: cancelPrice,
-    approveFee: (gas, gasPrice) => {
+    approveFee: async (gas, gasPrice) => {
       const checkInDuration = moment
         .duration(checkInIntervalInSec, 's')
         .humanize()
