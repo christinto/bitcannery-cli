@@ -82,7 +82,7 @@ export async function checkIn(contractAddressOrID) {
       const txFee = gas.times(gasPrice)
       const combinedFee = txFee.plus(checkInPrice)
 
-      const actualBalance = getBalance(address)
+      const actualBalance = await getBalance(address)
       const difference = actualBalance.minus(combinedFee)
 
       if (difference.lessThan(0)) {

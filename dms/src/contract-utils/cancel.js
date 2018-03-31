@@ -44,7 +44,7 @@ export async function cancelContract(instance, address) {
       const txFee = gas.times(gasPrice)
       const combinedFee = txFee.plus(cancelPrice)
 
-      const actualBalance = getBalance(address)
+      const actualBalance = await getBalance(address)
       const difference = actualBalance.minus(combinedFee)
 
       if (difference.lessThan(0)) {
