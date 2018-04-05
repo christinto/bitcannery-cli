@@ -19,7 +19,7 @@ import {
 import getContractAPIs from '../../utils/get-contract-apis'
 import {getLatestBlock, addressIsZero} from '../../utils/web3'
 import {formatWei} from '../../utils/format'
-import unlockAccount, {isAccountLocked} from '../../utils/unlock-account'
+import unlockAccount, {isAccountLocked} from '../../utils/accounts/unlock-account'
 import {contractTx} from '../../utils/tx'
 import encryptionUtils from '../../utils/encryption'
 import delay from '../../utils/delay'

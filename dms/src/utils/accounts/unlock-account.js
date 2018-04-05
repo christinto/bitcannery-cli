@@ -1,7 +1,7 @@
-import delay from './delay'
-import {getAccounts, sign} from './web3'
+import delay from '../delay'
+import {getAccounts, sign} from '../web3'
 
-import {config} from '../config'
+import {config} from '../../config'
 
 const RUNNING = -1
 const WAITING_FOR_JSON_RPC = 0

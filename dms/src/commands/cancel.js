@@ -14,7 +14,7 @@ export const builder = yargs => yargs
 import moment from 'moment'
 
 import getContractInstance from '../utils/get-contract-instance'
-import unlockAccount from '../utils/unlock-account'
+import unlockAccount from '../utils/accounts/unlock-account'
 import {formatWei} from '../utils/format'
 import {States} from '../utils/contract-api'
 import {contractTx} from '../utils/tx'

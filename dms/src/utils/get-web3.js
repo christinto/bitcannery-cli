@@ -1,10 +1,21 @@
 import Web3 from 'web3'
+import HDWalletProvider from 'truffle-hdwallet-provider'
+
 import {config} from '../config'
 
 let web3Instance
 
+function _getProvider() {
+  const {useLocalAccounts, mnemonic, rpcConnection} = config
+  if (useLocalAccounts && mnemonic) {
+    return new HDWalletProvider(mnemonic, rpcConnection)
+  } else {
+    return new Web3.providers.HttpProvider(rpcConnection)
+  }
+}
+
 function _getWeb3() {
-  const provider = new Web3.providers.HttpProvider(config.rpcConnection)
+  const provider = _getProvider()
   const web3 = new Web3(provider)
   return web3
 }

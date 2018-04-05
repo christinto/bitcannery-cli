@@ -28,3 +28,16 @@ export const MESSAGE_CONTRACT_STORE_PASSWORD_SET =
   `Contract store password set. Please write this password down on paper and make sure you ` +
   `don't lose it. This password will be referred as "contract data store password". You will ` +
   `need to enter it each time you do Keepers rotation or deploy a new contract.\n`
+
+export const MESSAGE_IMPORT_OR_GENEARATE_MNEMONIC =
+  `This application uses remote node to interact with ethereum blockchain. But it stores ` +
+  `ethereum keys locally to handle transaction signing. You will need to import an existing ` +
+  `BIP39 seed phrase or generate a new random one, because right no you don't have accounts.\n`
+
+export const MESSAGE_BEFORE_GENERATE_MNEMONIC =
+  `\nPlease save these 12 words on paper (order is important). This seed will` +
+  `allow you to recover your wallet in case of computer failure.\n`
+
+export const MESSAGE_AFTER_GENERATE_MNEMONIC =
+  `\nPlese make sure that you saved seed phrase and have some ` +
+  `ether on your account's balance.\n`

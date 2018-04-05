@@ -12,7 +12,9 @@ export const persistentConfig = new Conf({
   configName: env.CONFIG_NAME || 'default',
   encryptionKey: '0x06012c8cf97bead5deae237070f9587f8e7a266d',
   defaults: {
-    rpcConnection: 'http://localhost:8545',
+    useLocalAccounts: true,
+    rpcConnection: 'https://rinkeby.infura.io/YOUR_INFURA_KEY',
+    mnemonic: null,
     accountIndex: 0,
     deployedContracts: null,
     keeper: {
