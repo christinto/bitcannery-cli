@@ -11,6 +11,7 @@ import {encryptData} from '../utils/encryption'
 import packingUtils from '../utils/pack'
 import {formatWei} from '../utils/format'
 import print from '../utils/print'
+import keepersRequiredForRecovery from '../utils/keepers-required-for-recovery'
 
 import {MIN_KEEPERS_NUMBER, MAX_KEEPERS_IN_CHUNK} from '../constants'
 
@@ -88,7 +89,7 @@ export async function activateContract(
   const proposals = await fetchKeeperProposals(legacyContract)
   const selectedProposals = selectedProposalIndices.map(i => proposals[i])
   const keeperPublicKeys = selectedProposals.map(p => p.publicKey)
-  const numKeepersToRecover = Math.max(Math.floor(selectedProposals.length * 2 / 3), 2)
+  const numKeepersToRecover = keepersRequiredForRecovery(selectedProposals.length)
 
   const encryptionResult = await encryptData(
     legacyData,
