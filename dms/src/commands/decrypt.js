@@ -73,18 +73,24 @@ async function decrypt(contractAddressOrID) {
     print(`Failed to decrypt the legacy.`)
     print(`${suppliedKeyPartsCount} of ${keepersCount} keeper keys submitted`)
     if (suppliedKeyPartsCount === keepersCount) {
-      print(`Failed to decrypt the legacy. The private key you pasted here is not correct, `
-        +`please check it one more time.`)
+      print(
+        `Failed to decrypt the legacy. The private key you pasted here is not correct, ` +
+          `please check it one more time.`,
+      )
       return
     }
     if (suppliedKeyPartsCount < requiredForRecovery) {
-      print(`Failed to decrypt the legacy. Most likely, you need to wait until more keepers `+
-        `submit their keys. And check that the private key you pasted here is correct.`)
+      print(
+        `Failed to decrypt the legacy. Most likely, you need to wait until more keepers ` +
+          `submit their keys. And check that the private key you pasted here is correct.`,
+      )
       return
     } else {
-      print(`Failed to decrypt the legacy. Most likely, the private key you pasted here is not `
-        + `correct, please check it one more time. Also, it might be that you need to wait until `
-        + `more keepers submit their keys.`)
+      print(
+        `Failed to decrypt the legacy. Most likely, the private key you pasted here is not ` +
+          `correct, please check it one more time. Also, it might be that you need to wait until ` +
+          `more keepers submit their keys.`,
+      )
       return
     }
   }
