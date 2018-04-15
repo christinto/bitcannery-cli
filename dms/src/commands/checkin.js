@@ -14,7 +14,7 @@ export const builder = yargs => yargs
 import moment from 'moment'
 
 import getContractInstance from '../utils/get-contract-instance'
-import unlockAccount from '../utils/accounts/unlock-account'
+import {printWelcomeAndUnlockAccount} from '../contract-utils/common'
 import {formatWei} from '../utils/format'
 import {States, getActiveKeeperAddresses, getActiveKeepers} from '../utils/contract-api'
 import {contractTx} from '../utils/tx'
@@ -28,9 +28,7 @@ export function handler(argv) {
 }
 
 export async function checkIn(contractAddressOrID) {
-  const address = await unlockAccount()
-
-  print(`Current account address: ${address}`)
+  const address = await printWelcomeAndUnlockAccount()
 
   if (contractAddressOrID === null) {
     console.error('Please select a contract to check-in:')
