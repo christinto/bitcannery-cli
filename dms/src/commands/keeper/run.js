@@ -19,7 +19,8 @@ import {
 import getContractAPIs from '../../utils/get-contract-apis'
 import {getLatestBlock, addressIsZero} from '../../utils/web3'
 import {formatWei} from '../../utils/format'
-import unlockAccount, {isAccountLocked} from '../../utils/accounts/unlock-account'
+import {printWelcomeAndUnlockAccount} from '../../contract-utils/common'
+import {isAccountLocked} from '../../utils/accounts/unlock-account'
 import {contractTx} from '../../utils/tx'
 import encryptionUtils from '../../utils/encryption'
 import delay from '../../utils/delay'
@@ -55,11 +56,14 @@ const txQueue = new AsyncSerialQueue()
 
 async function runKeeper() {
   console.error(`Node.js version:`, process.version)
-  console.error(`Keeper config:`, sanitizeKeeperConfig(config.keeper))
 
-  const [{LegacyContract, registry}, account] = [await getContractAPIs(), await unlockAccount(true)]
+  const [{LegacyContract, registry}, account] = [
+    await getContractAPIs(),
+    await printWelcomeAndUnlockAccount(),
+  ]
   const api = {LegacyContract, registry, account}
 
+  console.error(`Keeper config:`, sanitizeKeeperConfig(config.keeper))
   console.error(`Using account with index ${config.accountIndex}: ${account}`)
 
   await watchCurrentContracts(api)
