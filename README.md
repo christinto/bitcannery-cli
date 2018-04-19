@@ -1,5 +1,7 @@
 # CryptoLegacy
 
+[How to use the system](/HOWTO.md).
+
 ## Running tests
 
 Install [`geth` client](https://ethereum.org/cli). On OS X, you can use `brew`:
