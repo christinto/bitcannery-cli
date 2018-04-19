@@ -12,7 +12,7 @@ Nobody, including keepers, can decrypt the message while Alice is performing reg
 Only Bob (possessor of the private key) can decrypt the message after Alice misses a check-in.
 
 Ethereum smart contract is created for each message published in the system. Each contract
-has a unique name which can be used to identify it.
+has a unique name which is used to identify it.
 
 * [Instructions for message sender](#message-sender-alice)
 * [Instructions for message recipient](#message-recipient-bob)
@@ -42,8 +42,9 @@ e.g. in Metamask/MyEtherWallet, is not recommended.
 
 If you didn't generate BIP39 seed phrase previously, select "Generate" using `Up`/`Down`
 arrow keys, and press `Enter`. The random seed phrase will be generated and printed to the
-console. Save this seed phrase in some safe place, preferably write it on paper. Anyone that
-knows this seed will be able to spend your ether and to destroy your secret message.
+console. Save this phrase in some safe place, preferably write it on paper. Anyone that
+knows this phrase will be able to spend your ether and to cancel delivery of your secret
+message.
 
 #### 2. Populate your Ethereum account with ether
 
@@ -69,8 +70,14 @@ So you need to populate your account with ether. If you're currently playing wit
 system in Rinkeby test Ethereum network, like in the example above (notice "Network:
 Rinkeby test network" line), use https://www.rinkeby.io/#faucet to get free test ether.
 If you're using main Ethereum network, buy ether on an exchange like https://www.coinbase.com
-and deposit it to your Pact-associated Ethereum address. Once you have enough ether on the
-account balance, run the command again (`./dms deploy <path-to-file>`).
+and deposit it to your Pact-associated Ethereum address. One ether should be enough to publish
+a message in most cases.
+
+Once you have enough ether on the account balance, run the command again:
+
+```
+./dms deploy <path-to-file>`
+```
 
 #### 3. Choose contract name
 
