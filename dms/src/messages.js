@@ -35,7 +35,7 @@ export const MESSAGE_IMPORT_OR_GENEARATE_MNEMONIC =
   `BIP39 seed phrase or generate a new random one, because right no you don't have accounts.\n`
 
 export const MESSAGE_BEFORE_GENERATE_MNEMONIC =
-  `\nPlease save these 12 words on paper (order is important). This seed will` +
+  `\nPlease save these 12 words on paper (order is important). This seed will ` +
   `allow you to recover your wallet in case of computer failure.\n`
 
 export const MESSAGE_AFTER_GENERATE_MNEMONIC =
