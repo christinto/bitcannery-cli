@@ -3,6 +3,7 @@ import BigNumber from 'bignumber.js'
 
 import throttle from './throttle'
 import once from './call-once'
+import checkTxHadEnoughEther from './check-tx-had-enough-ether'
 import UserError from './user-error'
 
 async function inspectTransaction(txResultPromise) {
@@ -31,7 +32,7 @@ function toBigNumber(val, defaultVal) {
 export default tx
 
 async function tx(txResultPromise) {
-  const txProps = await inspectTransaction(txResultPromise)
+  const txProps = await inspectTransaction(checkTxHadEnoughEther(txResultPromise))
   if (!txProps.success) {
     throw new UserError('transaction failed')
   }

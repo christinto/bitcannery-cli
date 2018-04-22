@@ -5,6 +5,7 @@ import getContractAPIs from '../utils/get-contract-apis'
 import {contractTx, getBlockGasLimit} from '../utils/tx'
 import delay from '../utils/delay'
 import {formatWei} from '../utils/format'
+import checkTxHadEnoughEther from '../utils/check-tx-had-enough-ether'
 import print from '../utils/print'
 
 export async function readLegacyData(pathToFile) {
@@ -18,11 +19,11 @@ export async function deployLegacyContract(contractId, checkInIntervalInSec, add
   const blockGasLimit = await getBlockGasLimit()
   const {LegacyContract} = await getContractAPIs()
 
-  const instance = await LegacyContract.new(checkInIntervalInSec, {
+  const instance = await checkTxHadEnoughEther(LegacyContract.new(checkInIntervalInSec, {
     from: address,
     gas: blockGasLimit, // TODO: estimate gas usage
     gasPrice: gasPrice,
-  })
+  }))
 
   deploySpinner.succeed(`Contract address is ${instance.address}`)
 
