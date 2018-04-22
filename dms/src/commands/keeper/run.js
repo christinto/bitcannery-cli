@@ -8,6 +8,7 @@ export const builder = {}
 
 import BigNumber from 'bignumber.js'
 import assert from 'assert'
+import {EventEmitter} from 'events'
 
 import {
   States,
@@ -56,6 +57,8 @@ const txQueue = new AsyncSerialQueue()
 
 async function runKeeper() {
   console.error(`Node.js version:`, process.version)
+
+  EventEmitter.defaultMaxListeners = 100;
 
   const [{LegacyContract, registry}, account] = [
     await getContractAPIs(),
