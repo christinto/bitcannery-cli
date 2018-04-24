@@ -1,5 +1,4 @@
 import linewrap from 'linewrap'
-import readlineSync from 'readline-sync'
 import inquirer from 'inquirer'
 import yn from 'yn'
 
@@ -30,16 +29,22 @@ export function wrap(string) {
   return _wrap(string)
 }
 
-export function question(message, opts) {
-  return readlineSync.question(wrap(message) + ' ', opts)
+export async function question(message, opts) {
+  const {result} = await inquirer.prompt({message, type: 'input', name: 'result', prefix: ''})
+  return result
 }
 
-question.demandAnswer = function question_demandAnswer(message, opts) {
-  let answer = question(message, opts)
+question.demandAnswer = async function question_demandAnswer(message, opts) {
+  let answer = await question(message, opts)
   while (!answer) {
-    answer = question(message, opts)
+    answer = await question(message, opts)
   }
   return answer
+}
+
+question.prompt = async function question_prompt(question) {
+  const {result} = await inquirer.prompt({...question, name: 'result', prefix: ''})
+  return result
 }
 
 question.password = async function question_password(message, requireNonEmpty = false) {
@@ -77,6 +82,12 @@ question.verifiedPassword = async function question_verifiedPassword(
   }
 }
 
-export function ynQuestion(message, opts) {
-  return yn(question(message + ' [Y/n]', opts))
+export async function ynQuestion(message, opts) {
+  const {result} = await inquirer.prompt({
+    message,
+    type: 'confirm',
+    name: 'result',
+    prefix: ''
+  })
+  return result
 }

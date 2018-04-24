@@ -1,6 +1,3 @@
-import {print} from '../utils/print'
-import keepersRequiredForRecovery from '../utils/keepers-required-for-recovery'
-
 export const command = 'decrypt <contract>'
 
 export const desc = 'Decrypt the legacy'
@@ -13,11 +10,14 @@ export const builder = yargs => yargs
 
 // Implementation
 
-import readlineSync from 'readline-sync'
+import ora from 'ora'
 
 import getContractInstance from '../utils/get-contract-instance'
 import {decryptData} from '../utils/encryption'
 import {States, assembleEncryptedDataStruct} from '../utils/contract-api'
+import keepersRequiredForRecovery from '../utils/keepers-required-for-recovery'
+import {question, print} from '../utils/print'
+import toNumber from '../utils/to-number'
 import runCommand from '../utils/run-command'
 
 export function handler(argv) {
@@ -26,23 +26,26 @@ export function handler(argv) {
 
 async function decrypt(contractAddressOrID) {
   // TODO: ensure json rpc is running
+
+  print(`Welcome to KeeperNet v2!\n`)
+
+  const spinner = ora('Reading contract...').start()
   const instance = await getContractInstance(contractAddressOrID)
 
-  const [state, encryptedDataRaw, suppliedKeyPartsCount, keepersCount] = [
-    (await instance.state()).toNumber(),
-    await instance.encryptedData(),
-    (await instance.getNumSuppliedKeyParts()).toNumber(),
-    (await instance.getNumKeepers()).toNumber(),
-  ]
+  const [state, encryptedDataRaw, suppliedKeyPartsCount, keepersCount] = await Promise.all([
+    toNumber(instance.state()),
+    instance.encryptedData(),
+    toNumber(instance.getNumSuppliedKeyParts()),
+    toNumber(instance.getNumKeepers()),
+  ])
 
-  // TODO: in case when supplied keys number is small
-  // in comparison with keepers number display a warning
   if (state !== States.CallForKeys) {
-    print(`Contract can't be decrypted yet`)
+    spinner.info(`Contract can't be decrypted yet.`)
     return
   }
 
-  print(`Welcome to KeeperNet v2! Contract is in "ready for decryption" state.`)
+  spinner.succeed(`Contract is in "ready for decryption" state.`)
+  spinner.start(`Obtaining decryption key parts...`)
 
   const requiredForRecovery = keepersRequiredForRecovery(keepersCount)
 
@@ -53,8 +56,25 @@ async function decrypt(contractAddressOrID) {
 
   suppliedKeyParts = await Promise.all(suppliedKeyParts)
 
+  spinner.succeed(
+    `${suppliedKeyPartsCount} of ${keepersCount} decryption keys submitted by keepers.`,
+  )
+
+  console.log()
+
+  if (suppliedKeyPartsCount === 0) {
+    print(
+      `None of the keepers submitted decryption keys yet. Please wait a little ` +
+        `and try again later.`,
+    )
+    return
+  }
+
   const data = assembleEncryptedDataStruct(encryptedDataRaw)
-  const privateKey = readlineSync.question(`To decrypt a contract enter your private key: `)
+  const privateKey = await question(`Enter the private key you received from message sender:`)
+
+  console.log()
+  spinner.start(`Decrypting data...`)
 
   let legacy = null
 
@@ -70,31 +90,28 @@ async function decrypt(contractAddressOrID) {
   } catch (err) {}
 
   if (legacy === null) {
-    print(`Failed to decrypt the legacy.`)
-    print(`${suppliedKeyPartsCount} of ${keepersCount} keeper keys submitted`)
+    spinner.fail(`Failed to decrypt the data.`)
+
     if (suppliedKeyPartsCount === keepersCount) {
+      print(`\nThe private key you pasted here is not correct, please check it one more time.`)
+    } else if (suppliedKeyPartsCount < requiredForRecovery) {
       print(
-        `Failed to decrypt the legacy. The private key you pasted here is not correct, ` +
-          `please check it one more time.`,
+        `\nMost likely, you need to wait until more keepers submit their keys. ` +
+          `Also, check that the private key you pasted here is correct.`,
       )
-      return
-    }
-    if (suppliedKeyPartsCount < requiredForRecovery) {
-      print(
-        `Failed to decrypt the legacy. Most likely, you need to wait until more keepers ` +
-          `submit their keys. And check that the private key you pasted here is correct.`,
-      )
-      return
     } else {
       print(
-        `Failed to decrypt the legacy. Most likely, the private key you pasted here is not ` +
-          `correct, please check it one more time. Also, it might be that you need to wait until ` +
-          `more keepers submit their keys.`,
+        `\nMost likely, the private key you pasted here is not correct, please check it ` +
+          `one more time. Also, it might be that you need to wait until more keepers ` +
+          `submit their keys.`,
       )
-      return
     }
+
+    return
   }
 
-  print('\nTrying to decrypt...\n')
-  print(Buffer.from(legacy.substring(2), 'hex').toString('utf8'))
+  spinner.succeed(`Successfully decrypted data!`)
+  console.log()
+
+  console.log(Buffer.from(legacy.substring(2), 'hex').toString('utf8'))
 }

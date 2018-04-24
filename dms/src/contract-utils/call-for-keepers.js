@@ -188,7 +188,7 @@ async function askIsDefaultKeeperNumber(defaultKeeperNumber, keepingFeeForDefaul
         type: 'list',
         name: IS_DEFAULT_KEEPER_NUMBER,
         message:
-          'To activate the contract please choose the number of keepers and the corresponding fee',
+          'To activate the contract please choose number of keepers and the corresponding fee',
         choices: [
           {
             name: `${defaultKeeperNumber} keepers, ${formatWei(

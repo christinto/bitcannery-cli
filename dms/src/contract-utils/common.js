@@ -12,9 +12,12 @@ const ACCOUNT_CRITICAL_LOW_BALANCE = new BigNumber('1e15') // 0.001 ETH
 export async function printWelcomeAndUnlockAccount() {
   print('Welcome to KeeperNet v2!\n')
 
-  const networkName = await getNetworkName()
-  const address = await getPreparedAccount()
-  const {registry} = await getContractAPIs()
+  const [networkName, address, {registry}] = await Promise.all([
+    getNetworkName(),
+    getPreparedAccount(),
+    getContractAPIs(),
+  ])
+
   const balance = await getBalance(address)
 
   print(`Your address: ${address}`)
@@ -29,7 +32,7 @@ export async function printWelcomeAndUnlockAccount() {
   }
 
   if (balance.lt(ACCOUNT_LOW_BALANCE)) {
-    print('Warning: Account balance is low, please refill it shortly.\n')
+    print('Warning: account balance is low, please refill it shortly.\n')
   }
 
   return address

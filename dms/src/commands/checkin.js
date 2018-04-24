@@ -12,6 +12,7 @@ export const builder = yargs => yargs
 // Implementation
 
 import moment from 'moment'
+import ora from 'ora'
 
 import getContractInstance from '../utils/get-contract-instance'
 import {printWelcomeAndUnlockAccount} from '../contract-utils/common'
@@ -22,6 +23,7 @@ import {print, ynQuestion} from '../utils/print'
 import {getBalance} from '../utils/web3'
 import runCommand from '../utils/run-command'
 import {selectContract} from '../utils/select-contract'
+import toNumber from '../utils/to-number'
 
 export function handler(argv) {
   return runCommand(() => checkIn(argv.contract))
@@ -31,43 +33,59 @@ export async function checkIn(contractAddressOrID) {
   const address = await printWelcomeAndUnlockAccount()
 
   if (contractAddressOrID === null) {
-    console.error('Please select a contract to check-in:')
-    contractAddressOrID = await selectContract()
+    contractAddressOrID = await selectContract('Please select a contract to check in:')
+
+    if (contractAddressOrID === undefined) {
+      print(
+        `You have no contracts yet. If you know that you're the owner of a contract, ` +
+          `pass its name as the argument to this command:\n\n  dms checkin contract_name\n`,
+      )
+      return
+    }
+
+    if (contractAddressOrID === null) {
+      return
+    }
   }
+
+  const spinner = ora('Reading contract...').start()
 
   const instance = await getContractInstance(contractAddressOrID)
-  const [state, owner] = [(await instance.state()).toNumber(), await instance.owner()]
+
+  const [owner, state, lastOwnerCheckInAt, checkInIntervalInSec] = await Promise.all([
+    instance.owner(),
+    toNumber(instance.state()),
+    toNumber(instance.lastOwnerCheckInAt()),
+    toNumber(instance.checkInInterval()),,
+  ])
 
   if (owner !== address) {
-    console.error(`Only contract owner can perform check-in`)
+    spinner.fail(`Only contract owner can perform check-in.`)
     return
   }
 
-  console.error(`You've been identified as the contract owner.`)
+  let checkInMissed = state === States.CallForKeys
+
+  if (state === States.Active) {
+    const checkInDueDate = moment.unix(lastOwnerCheckInAt + checkInIntervalInSec)
+    checkInMissed = !moment().isSameOrBefore(checkInDueDate)
+  }
+
+  if (checkInMissed) {
+    spinner.fail(`You have missed check-in due date. Bob can now decrypt the legacy.`)
+    return
+  }
 
   if (state !== States.Active) {
-    console.error(`Owner can perform check-in only for a contract in Active state.`)
-    console.error(`Check-in Failed.`)
+    spinner.fail(`Owner can perform check-in only for a contract in Active state.`)
+    print(`\nCurrent contract state: ${States.stringify(state)}.`)
     return
   }
 
-  const [lastOwnerCheckInAt, checkInIntervalInSec, checkInPrice] = [
-    (await instance.lastOwnerCheckInAt()).toNumber(),
-    (await instance.checkInInterval()).toNumber(),
-    await instance.calculateApproximateCheckInPrice(),
-  ]
+  const checkInPrice = await instance.calculateApproximateCheckInPrice()
 
-  const checkInDueDate = moment.unix(lastOwnerCheckInAt + checkInIntervalInSec)
-  const isCheckInOnTime = moment().isSameOrBefore(checkInDueDate)
-
-  if (!isCheckInOnTime) {
-    console.error(`Sorry, you have missed check-in due date.`)
-    console.error(`Bob now can decrypt the legacy.`)
-    console.error(`Check-in Failed.`)
-    return
-  }
-
-  // TODO: check owner account balance
+  spinner.succeed(`You've been identified as the contract owner.`)
+  spinner.start(`Calculating check-in price...`)
 
   const txResult = await contractTx(instance, 'ownerCheckIn', {
     from: address,
@@ -84,55 +102,68 @@ export async function checkIn(contractAddressOrID) {
       const difference = actualBalance.minus(combinedFee)
 
       if (difference.lessThan(0)) {
+        spinner.fail(`Cannot check in due to insufficient balance.`)
         print(
-          `\nCouldn't check in due to low balance.\n` +
-            `  Check in will cost you ${formatWei(combinedFee)}\n` +
-            `  and you've got only ${formatWei(actualBalance)}.\n` +
-            `  Please, add ${formatWei(difference.abs())} to your account and try again.`,
+          `\nCheck in will cost you ${formatWei(combinedFee)},\n` +
+            `and you've got only ${formatWei(actualBalance)}.\n` +
+            `Please add ${formatWei(difference.abs())} to your account and try again.`,
         )
         return false
       }
 
-      const proceed = ynQuestion(
+      spinner.succeed()
+
+      const proceed = await ynQuestion(
         `\nCheck-in will cost you ${formatWei(combinedFee)}:\n` +
           `  keeping fee for the next ${checkInDuration}: ${formatWei(checkInPrice)},\n` +
-          `  transaction cost: ${formatWei(txFee)}.\n\n` +
+          `  transaction fee: ${formatWei(txFee)}.\n\n` +
           `Proceed?`,
       )
+
       if (proceed) {
-        print(`Checking in...`)
+        console.log()
+        spinner.start(`Checking in...`)
       }
+
       return proceed
     },
   })
 
   if (txResult) {
-    console.error(`Done! Transaction hash: ${txResult.txHash}`)
-    console.error(`Paid for transaction: ${formatWei(txResult.txPriceWei)}`)
+    spinner.succeed(`Check-in successful! Transaction hash: ${txResult.txHash}`)
+    console.error(`\nPaid for transaction: ${formatWei(txResult.txPriceWei)}`)
   }
 
-  console.error(`\nSee you next time!`)
-  console.error(
-    'The next check-in:',
-    moment()
-      .add(checkInIntervalInSec, 's')
-      .fromNow(),
-  )
+  console.log()
+  spinner.start(`Checking keepers' reliability...`)
 
   const activeKeeperAddresses = await getActiveKeeperAddresses(instance)
-  const activeKeeper = await getActiveKeepers(instance, activeKeeperAddresses)
-  const keeperReliabilityThreshold = Math.floor(Date.now() / 1000) - checkInIntervalInSec
-  const reliableKeepers = activeKeeper.filter(k => k.lastCheckInAt > keeperReliabilityThreshold)
-  print(`\nTotal keepers number: ${activeKeeper.length}`)
-  print(`Reliable keepers number: ${reliableKeepers.length}`)
+  const activeKeepers = await getActiveKeepers(instance, activeKeeperAddresses)
 
-  const keeperNumberThreshold = Math.ceil(activeKeeper.length * 2 / 3)
+  const keeperReliabilityThreshold = Math.floor(Date.now() / 1000) - checkInIntervalInSec
+  const reliableKeepers = activeKeepers.filter(k => k.lastCheckInAt > keeperReliabilityThreshold)
+
+  spinner.succeed()
+
+  print(
+    `\nTotal keepers number: ${activeKeepers.length}\n` +
+      `Reliable keepers number: ${reliableKeepers.length}`,
+  )
+
+  print(
+    `\nSee you next time!\nThe next check-in: ` +
+      moment()
+        .add(checkInIntervalInSec, 's')
+        .fromNow(),
+  )
+
+  const keeperNumberThreshold = Math.ceil(activeKeepers.length * 2 / 3)
 
   if (reliableKeepers.length < keeperNumberThreshold) {
     print(
       `\nThe number of keeper fell below the critical limit.` +
         ` To successfully decrypt the contract, you need at least ${keeperNumberThreshold} keepers.` +
-        ` You must perform keeper rotation procedure!\n`,
+        ` You must perform keeper rotation procedure!`,
     )
   }
 }

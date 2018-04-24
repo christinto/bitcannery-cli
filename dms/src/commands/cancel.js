@@ -11,10 +11,12 @@ export const builder = yargs => yargs
 
 // Implementation
 
+import BigNumber from 'bignumber.js'
 import moment from 'moment'
+import ora from 'ora'
 
 import getContractInstance from '../utils/get-contract-instance'
-import unlockAccount from '../utils/accounts/unlock-account'
+import {printWelcomeAndUnlockAccount} from '../contract-utils/common'
 import {formatWei} from '../utils/format'
 import {States} from '../utils/contract-api'
 import {contractTx} from '../utils/tx'
@@ -22,54 +24,70 @@ import {print, ynQuestion} from '../utils/print'
 import {getBalance} from '../utils/web3'
 import runCommand from '../utils/run-command'
 import {selectContract} from '../utils/select-contract'
+import toNumber from '../utils/to-number'
 
 export function handler(argv) {
   return runCommand(() => cancel(argv.contract))
 }
 
 export async function cancel(contractAddressOrID) {
-  const address = await unlockAccount()
-
-  print(`Current account address: ${address}`)
+  const address = await printWelcomeAndUnlockAccount()
 
   if (contractAddressOrID === null) {
-    console.error('Please select a contract to cancel:')
-    contractAddressOrID = await selectContract()
-  }
+    contractAddressOrID = await selectContract('Please select a contract to cancel:')
 
-  const instance = await getContractInstance(contractAddressOrID)
-  const [state, owner] = [(await instance.state()).toNumber(), await instance.owner()]
+    if (contractAddressOrID === undefined) {
+      print(
+        `You have no contracts yet. If you know that you're the owner of a contract, ` +
+          `pass its name as the argument to this command:\n\n  dms cancel contract_name\n`,
+      )
+      return
+    }
 
-  if (owner !== address) {
-    console.error(`Only owner can cancel the contract`)
-    return
-  }
-
-  console.error(`You've been identified as the contract owner.`)
-
-  if (state !== States.Active && state !== States.CallForKeepers) {
-    console.error(`Owner can cancel only for a contract in Active or CallForKeepers state`)
-    return
-  }
-
-  const [lastOwnerCheckInAt, checkInIntervalInSec, checkInPrice] = [
-    (await instance.lastOwnerCheckInAt()).toNumber(),
-    (await instance.checkInInterval()).toNumber(),
-    await instance.calculateApproximateCheckInPrice(),
-  ]
-
-  if (state === States.Active) {
-    const checkInDueDate = moment.unix(lastOwnerCheckInAt + checkInIntervalInSec)
-    const isCheckInOnTime = moment().isSameOrBefore(checkInDueDate)
-
-    if (!isCheckInOnTime) {
-      console.error(`Sorry, you have missed check-in due date. Cancelling contract isn't possible`)
-      console.error(`Bob now can decrypt the legacy.`)
+    if (contractAddressOrID === null) {
       return
     }
   }
 
-  const cancelPrice = state === States.Active ? checkInPrice : 0
+  const spinner = ora('Reading contract...').start()
+  const instance = await getContractInstance(contractAddressOrID)
+
+  const [owner, state, lastOwnerCheckInAt, checkInIntervalInSec] = await Promise.all([
+    instance.owner(),
+    toNumber(instance.state()),
+    toNumber(instance.lastOwnerCheckInAt()),
+    toNumber(instance.checkInInterval()),
+  ])
+
+  if (owner !== address) {
+    spinner.fail(`Only owner can cancel the contract.`)
+    return
+  }
+
+  let checkInMissed = state === States.CallForKeys
+
+  if (state === States.Active) {
+    const checkInDueDate = moment.unix(lastOwnerCheckInAt + checkInIntervalInSec)
+    checkInMissed = !moment().isSameOrBefore(checkInDueDate)
+  }
+
+  if (checkInMissed) {
+    spinner.fail(`You have missed check-in due date.`)
+    console.error(`\nCancelling contract isn't possible. Bob can now decrypt the legacy.`)
+    return
+  }
+
+  if (state !== States.Active && state !== States.CallForKeepers) {
+    spinner.fail(`Owner can only cancel a contract in Active or CallForKeepers state.`)
+    print(`\nCurrent contract state: ${States.stringify(state)}.`)
+    return
+  }
+
+  spinner.succeed(`You've been identified as the contract owner.`)
+  spinner.start(`Calculating transaction fee...`)
+
+  const cancelPrice =
+    state === States.Active ? await instance.calculateApproximateCheckInPrice() : new BigNumber(0)
 
   const txResult = await contractTx(instance, 'cancel', {
     from: address,
@@ -79,6 +97,7 @@ export async function cancel(contractAddressOrID) {
         .duration(checkInIntervalInSec, 's')
         .humanize()
         .replace(/^a /, '')
+
       const txFee = gas.times(gasPrice)
       const combinedFee = txFee.plus(cancelPrice)
 
@@ -86,31 +105,39 @@ export async function cancel(contractAddressOrID) {
       const difference = actualBalance.minus(combinedFee)
 
       if (difference.lessThan(0)) {
+        spinner.fail(`Cannot cancel the contract due to insufficient balance.`)
         print(
-          `\nCouldn't cancel contract due to low balance.\n` +
-            `  Cancelling will cost you ${formatWei(combinedFee)}\n` +
-            `  and you've got only ${formatWei(actualBalance)}.\n` +
-            `  Please, add ${formatWei(difference.abs())} to your account and try again.`,
+          `\nCancelling will cost you ${formatWei(combinedFee)},\n` +
+            `and you've got only ${formatWei(actualBalance)}.\n` +
+            `Please, add ${formatWei(difference.abs())} to your account and try again.`,
         )
         return false
       }
 
-      const proceed = ynQuestion(
-        `\nCancelling contract will cost you ${formatWei(combinedFee)}:\n` +
-          `  transaction cost: ${formatWei(txFee)}.\n\n` +
-          `Proceed?`,
-      )
+      spinner.succeed()
+
+      const proceedQuestion = cancelPrice.isZero()
+        ? `\nCancelling contract will cost you ${formatWei(combinedFee)} (transaction fee).\n` +
+          `Proceed?`
+        : `\nCancelling contract will cost you ${formatWei(combinedFee)}:\n` +
+          `  keeping fee: ${formatWei(cancelPrice)},\n` +
+          `  transaction fee: ${formatWei(txFee)}.\n\n` +
+          `Proceed?`
+
+      const proceed = await ynQuestion(proceedQuestion)
       if (proceed) {
-        print(`Cancelling contract`)
+        console.log()
+        spinner.start(`Cancelling contract...`)
       }
+
       return proceed
     },
   })
 
   if (txResult) {
-    console.error(`Done! Transaction hash: ${txResult.txHash}`)
-    console.error(`Paid for transaction: ${formatWei(txResult.txPriceWei)}`)
+    spinner.succeed(`Cancel successful! Transaction hash: ${txResult.txHash}`)
+    print(`\nPaid for transaction: ${formatWei(txResult.txPriceWei)}\nSee you next time!`)
+  } else {
+    print(`\nSee you next time!`)
   }
-
-  console.error(`\nSee you next time!`)
 }
