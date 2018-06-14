@@ -1,35 +1,35 @@
-# CryptoLegacy
+# BitCannery
 
-[How to use the system](/HOWTO.md).
+BitCannery network command-line client
 
-## Running tests
+## Introduction
 
-Install [`geth` client](https://ethereum.org/cli). On OS X, you can use `brew`:
+*BitCannery network* allows to keep a secret information in a plain sight on any Ethereum-compatible
+blockchain. It uses agents aka 'keeper' nodes who holds chunks of the decryption key created via Shamir’s secret sharing algorithm. Keepers motivated by the fee which paid by the secret owner. Currently BitCannery network can be used via command-line client.
+
+## Requirements
+
+bitcannery-cli currently support only Linux and MacOS systems.  
+
+## Building
+
+You'll need Node v8+ and npm 5+.
 
 ```
-brew tap ethereum/ethereum
-brew install ethereum
-```
-
-Go to `truffle` directory and run `npm install` (this needs to be done only once):
-
-```shell
-cd project_dir/truffle
+git clone git@github.com:bitcannery/bitcannery-cli.git
+cd bitcannery-cli
+cd dms
 npm install
+npm run bundle
 ```
 
-Open two terminals. In the first one, run geth (keep in mind that this command runs geth in special development mode):
+## Running Truffle tests
 
-```shell
-# Terminal 1
-./run-geth.sh
 ```
-
-Wait until `geth` starts and unlocks all accounts (should take 15-20 seconds). In the second terminal, run the tests and watch the output:
-
-```shell
-# Terminal 2
+cd truffle
 npm test
 ```
 
-That's it.
+## More information
+
+[How to use the system](/HOWTO.md).
