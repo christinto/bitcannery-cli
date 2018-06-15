@@ -1,5 +1,7 @@
 # BitCannery
 
+[![Build Status](https://travis-ci.org/bitcannery/bitcannery-cli.svg?branch=master)](https://travis-ci.org/bitcannery/bitcannery-cli)
+
 BitCannery network command-line client
 
 ## Introduction
